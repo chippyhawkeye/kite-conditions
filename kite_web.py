@@ -8,11 +8,11 @@ using Flask. Reuses the same Open-Meteo data pipeline as the CLI tool.
 
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from pathlib import Path
 
 import requests
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 
 # ── Configuration ────────────────────────────────────────────────────────────
 
@@ -117,7 +117,7 @@ def load_spots():
         return json.load(f)
 
 
-def fetch_forecast(lat, lon):
+def fetch_forecast(lat, lon, start_date=None, end_date=None):
     params = {
         "latitude": lat,
         "longitude": lon,
@@ -126,8 +126,12 @@ def fetch_forecast(lat, lon):
         "temperature_unit": "fahrenheit",
         "wind_speed_unit": "mph",
         "timezone": "auto",
-        "forecast_days": 7,
     }
+    if start_date and end_date:
+        params["start_date"] = start_date
+        params["end_date"] = end_date
+    else:
+        params["forecast_days"] = 7
     resp = requests.get(OPEN_METEO_URL, params=params, timeout=15)
     resp.raise_for_status()
     return resp.json()
@@ -135,7 +139,7 @@ def fetch_forecast(lat, lon):
 
 # ── Data Processing ──────────────────────────────────────────────────────────
 
-def build_forecast_data():
+def build_forecast_data(start_date=None, end_date=None):
     """Fetch and structure all forecast data for the template."""
     spots = load_spots()
     generated = datetime.now().strftime("%A, %B %d %Y at %I:%M %p")
@@ -145,7 +149,7 @@ def build_forecast_data():
 
     for spot in spots:
         try:
-            data = fetch_forecast(spot["lat"], spot["lon"])
+            data = fetch_forecast(spot["lat"], spot["lon"], start_date, end_date)
         except Exception as e:
             all_spots.append({
                 "name": spot["name"],
@@ -308,7 +312,35 @@ app = Flask(__name__)
 
 @app.route("/")
 def index():
-    forecast = build_forecast_data()
+    # Date range from query params, default to today + 7 days
+    today = date.today()
+    default_end = today + timedelta(days=6)
+    max_end = today + timedelta(days=15)  # Open-Meteo supports up to 16 days
+
+    start_str = request.args.get("start", today.isoformat())
+    end_str = request.args.get("end", default_end.isoformat())
+
+    try:
+        start_date = date.fromisoformat(start_str)
+        end_date = date.fromisoformat(end_str)
+    except ValueError:
+        start_date = today
+        end_date = default_end
+
+    # Clamp to valid range
+    if start_date < today:
+        start_date = today
+    if end_date > max_end:
+        end_date = max_end
+    if end_date < start_date:
+        end_date = start_date
+
+    forecast = build_forecast_data(start_date.isoformat(), end_date.isoformat())
+    forecast["start_date"] = start_date.isoformat()
+    forecast["end_date"] = end_date.isoformat()
+    forecast["today"] = today.isoformat()
+    forecast["max_end"] = max_end.isoformat()
+    forecast["num_days"] = (end_date - start_date).days + 1
     return render_template("index.html", **forecast)
 
 
