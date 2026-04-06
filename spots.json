@@ -1,0 +1,32 @@
+[
+  {
+    "name": "Cape Hatteras, NC",
+    "lat": 35.2225,
+    "lon": -75.6350
+  },
+  {
+    "name": "South Padre Island, TX",
+    "lat": 26.1118,
+    "lon": -97.1681
+  },
+  {
+    "name": "Hood River, OR",
+    "lat": 45.7054,
+    "lon": -121.5215
+  },
+  {
+    "name": "Outer Banks - Rodanthe, NC",
+    "lat": 35.5935,
+    "lon": -75.4638
+  },
+  {
+    "name": "Cocoa Beach, FL",
+    "lat": 28.3200,
+    "lon": -80.6076
+  },
+  {
+    "name": "Maui - Kanaha Beach, HI",
+    "lat": 20.9370,
+    "lon": -156.4380
+  }
+]
