@@ -239,10 +239,58 @@ def build_forecast_data():
             "days": spot_days,
         })
 
+    # Build day-centric grid: for each date, gather all spots' daily data
+    # Collect all unique dates in order from the first spot that has data
+    day_dates = []
+    for s in all_spots:
+        if s["days"]:
+            day_dates = [d["date"] for d in s["days"]]
+            break
+
+    days_grid = []
+    for date_str in day_dates:
+        dt = datetime.strptime(date_str, "%Y-%m-%d")
+        day_spots = []
+        for s in all_spots:
+            # Find this date in the spot's days
+            match = next((d for d in s["days"] if d["date"] == date_str), None)
+            if match:
+                day_spots.append({
+                    "name": s["name"],
+                    "lat": s["lat"],
+                    "lon": s["lon"],
+                    **match,
+                })
+            else:
+                day_spots.append({
+                    "name": s["name"],
+                    "lat": s["lat"],
+                    "lon": s["lon"],
+                    "rating": "unknown",
+                    "rating_label": "?",
+                    "rating_emoji": "⚪",
+                    "max_wind": None,
+                    "max_gust": None,
+                    "dom_dir": "?",
+                    "hi": None,
+                    "lo": None,
+                    "sunrise": "?",
+                    "sunset": "?",
+                    "hours": [],
+                })
+        days_grid.append({
+            "date": date_str,
+            "day_name": dt.strftime("%A"),
+            "day_short": dt.strftime("%a"),
+            "month_day": dt.strftime("%b %d"),
+            "spots": day_spots,
+        })
+
     return {
         "generated": generated,
         "spots": all_spots,
         "best_days": best_days,
+        "days_grid": days_grid,
     }
 
 

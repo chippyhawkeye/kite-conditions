@@ -56,60 +56,92 @@
       padding: 1.5rem 1rem;
     }
 
-    /* ── Best Days Summary ─────────────────── */
-    .best-days {
-      margin-bottom: 2rem;
+    /* ── Overview Section ──────────────────── */
+    .overview {
+      margin-bottom: 2.5rem;
     }
 
-    .best-days h2 {
+    .overview h2 {
       font-size: 1.3rem;
-      margin-bottom: 1rem;
+      margin-bottom: 0.75rem;
       color: var(--accent);
     }
 
-    .best-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 0.6rem;
-    }
-
-    .best-card {
+    .overview-row {
       display: flex;
-      align-items: center;
-      gap: 0.75rem;
+      align-items: stretch;
+      gap: 0;
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0.7rem 1rem;
-      transition: background 0.15s;
+      border-bottom: none;
+      transition: background 0.1s;
     }
 
-    .best-card:hover { background: var(--card-hover); }
+    .overview-row:first-child { border-radius: 8px 8px 0 0; }
+    .overview-row:last-child { border-bottom: 1px solid var(--border); border-radius: 0 0 8px 8px; }
+    .overview-row:only-child { border-radius: 8px; border-bottom: 1px solid var(--border); }
+    .overview-row:hover { background: var(--card-hover); }
 
-    .best-card.send-it { border-left: 3px solid var(--send-it); }
-    .best-card.maybe { border-left: 3px solid var(--maybe); }
+    .overview-row.send-it { border-left: 3px solid var(--send-it); }
+    .overview-row.maybe { border-left: 3px solid var(--maybe); }
+    .overview-row.nope { border-left: 3px solid var(--border); opacity: 0.55; }
 
-    .best-card .rating-dot {
-      font-size: 1.3rem;
+    .overview-spot {
+      width: 200px;
       flex-shrink: 0;
+      padding: 0.7rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border-right: 1px solid var(--border);
     }
 
-    .best-card .info { flex: 1; min-width: 0; }
-    .best-card .spot-name {
+    .overview-spot .spot-emoji { font-size: 1rem; }
+    .overview-spot .spot-label {
       font-weight: 600;
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .best-card .day-info {
-      font-size: 0.78rem;
+
+    .overview-stats {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      padding: 0.7rem 1rem;
+      overflow-x: auto;
+    }
+
+    .overview-stat {
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .overview-stat .ov-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
       color: var(--text-muted);
     }
-    .best-card .wind-badge {
-      font-size: 0.85rem;
+
+    .overview-stat .ov-value {
+      font-size: 0.95rem;
       font-weight: 700;
-      white-space: nowrap;
+    }
+
+    .overview-stat .ov-value.wind-highlight {
+      font-size: 1.1rem;
+    }
+
+    .overview-rating {
+      width: 110px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.7rem 0.5rem;
     }
 
     /* ── Spot Sections ─────────────────────── */
@@ -299,11 +331,15 @@
     /* ── Responsive ────────────────────────── */
     @media (max-width: 640px) {
       header h1 { font-size: 1.4rem; }
-      .best-grid { grid-template-columns: 1fr; }
       .day-summary { gap: 1rem; }
       .hourly-table { font-size: 0.75rem; }
       .hourly-table td, .hourly-table th { padding: 0.4rem 0.5rem; }
       .hide-mobile { display: none; }
+      .overview-spot { width: 130px; }
+      .overview-spot .spot-label { font-size: 0.72rem; }
+      .overview-stats { gap: 0.8rem; }
+      .overview-rating { width: 80px; }
+      .overview-rating .rating-badge { font-size: 0.7rem; padding: 0.2rem 0.4rem; }
     }
   </style>
 </head>
@@ -316,22 +352,62 @@
 
   <div class="container">
 
-    <!-- ── Best Days ──────────────────────── -->
-    {% if best_days %}
-    <section class="best-days">
-      <h2>🏆 Best Days to Kite</h2>
-      <div class="best-grid">
-        {% for bd in best_days %}
-        <div class="best-card {{ bd.rating }}">
-          <div class="rating-dot">{{ bd.rating_emoji }}</div>
-          <div class="info">
-            <div class="spot-name">{{ bd.spot }}</div>
-            <div class="day-info">{{ bd.day_name }} &middot; {{ bd.dom_dir }} {{ bd.max_wind }} mph</div>
+    <!-- ── Overview: Day tabs + All spots ── -->
+    {% if days_grid %}
+    <section class="overview">
+      <h2>🪁 7-Day Overview</h2>
+
+      <div class="day-tabs" role="tablist">
+        {% for dg in days_grid %}
+        <button class="day-tab {% if loop.first %}active{% endif %}"
+                role="tab"
+                data-spot="overview"
+                data-day="{{ loop.index }}"
+                onclick="switchDay('overview', {{ loop.index }})">
+          <div>{{ dg.day_short }}</div>
+          <div style="font-size:0.72rem;color:var(--text-muted)">{{ dg.month_day }}</div>
+        </button>
+        {% endfor %}
+      </div>
+
+      {% for dg in days_grid %}
+      <div class="day-panel {% if loop.first %}active{% endif %}"
+           id="panel-overview-{{ loop.index }}">
+        {% for s in dg.spots %}
+        <div class="overview-row {{ s.rating }}">
+          <div class="overview-spot">
+            <span class="spot-emoji">📍</span>
+            <span class="spot-label">{{ s.name }}</span>
           </div>
-          <div class="wind-badge">{{ bd.rating_label }}</div>
+          <div class="overview-stats">
+            <div class="overview-stat">
+              <div class="ov-label">Wind</div>
+              <div class="ov-value wind-highlight">{{ s.max_wind or '–' }}</div>
+            </div>
+            <div class="overview-stat">
+              <div class="ov-label">Gust</div>
+              <div class="ov-value">{{ s.max_gust or '–' }}</div>
+            </div>
+            <div class="overview-stat">
+              <div class="ov-label">Dir</div>
+              <div class="ov-value">{{ s.dom_dir }}</div>
+            </div>
+            <div class="overview-stat">
+              <div class="ov-label">Temp</div>
+              <div class="ov-value">{{ s.lo or '–' }}°–{{ s.hi or '–' }}°</div>
+            </div>
+            <div class="overview-stat hide-mobile">
+              <div class="ov-label">Sky</div>
+              <div class="ov-value">☀️ {{ s.sunrise }} → {{ s.sunset }}</div>
+            </div>
+          </div>
+          <div class="overview-rating">
+            <span class="rating-badge {{ s.rating }}">{{ s.rating_emoji }} {{ s.rating_label }}</span>
+          </div>
         </div>
         {% endfor %}
       </div>
+      {% endfor %}
     </section>
     {% endif %}
 
@@ -453,6 +529,22 @@
       document.querySelector(`.day-tab[data-spot="${spotIdx}"][data-day="${dayIdx}"]`).classList.add('active');
       document.getElementById(`panel-${spotIdx}-${dayIdx}`).classList.add('active');
     }
+
+    // Clicking an overview row scrolls to that spot's detail section
+    document.querySelectorAll('.overview-row').forEach(row => {
+      row.style.cursor = 'pointer';
+      row.addEventListener('click', (e) => {
+        const label = row.querySelector('.spot-label');
+        if (!label) return;
+        const name = label.textContent.trim();
+        // Find matching spot section
+        document.querySelectorAll('.spot-header h2').forEach(h2 => {
+          if (h2.textContent.includes(name)) {
+            h2.closest('.spot-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        });
+      });
+    });
   </script>
 
 </body>
