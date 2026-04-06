@@ -450,7 +450,7 @@
           <tbody>
             {% for spot in spots %}
             <tr data-spot-name="{{ spot.name }}">
-              <td class="spot-cell">📍 {{ spot.name }}</td>
+              <td class="spot-cell">📍 {{ spot.name }}<br><span style="font-size:0.75em;color:var(--text-muted)">avg {{ spot.overall_avg_wind }} mph</span></td>
               {% for dg in days_grid %}
                 {% set match = namespace(found=none) %}
                 {% for s in dg.spots %}

@@ -249,6 +249,12 @@ def build_forecast_data(start_date=None, end_date=None):
             "days": spot_days,
         })
 
+    # Sort spots by overall average wind (best conditions first)
+    for s in all_spots:
+        winds = [d["avg_wind"] for d in s["days"] if d.get("avg_wind") is not None]
+        s["overall_avg_wind"] = round(sum(winds) / len(winds)) if winds else 0
+    all_spots.sort(key=lambda s: s["overall_avg_wind"], reverse=True)
+
     # Build day-centric grid: for each date, gather all spots' daily data
     # Collect all unique dates in order from the first spot that has data
     day_dates = []
