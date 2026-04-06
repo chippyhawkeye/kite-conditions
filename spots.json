@@ -5,16 +5,6 @@
     "lon": -75.6350
   },
   {
-    "name": "South Padre Island, TX",
-    "lat": 26.1118,
-    "lon": -97.1681
-  },
-  {
-    "name": "Hood River, OR",
-    "lat": 45.7054,
-    "lon": -121.5215
-  },
-  {
     "name": "Outer Banks - Rodanthe, NC",
     "lat": 35.5935,
     "lon": -75.4638
@@ -25,8 +15,23 @@
     "lon": -80.6076
   },
   {
-    "name": "Maui - Kanaha Beach, HI",
-    "lat": 20.9370,
-    "lon": -156.4380
+    "name": "Key West, FL",
+    "lat": 24.5551,
+    "lon": -81.7800
+  },
+  {
+    "name": "Grand Cayman, Cayman Islands",
+    "lat": 19.3133,
+    "lon": -81.2546
+  },
+  {
+    "name": "Providenciales, Turks & Caicos",
+    "lat": 21.7735,
+    "lon": -72.2686
+  },
+  {
+    "name": "Dauphin Island, AL",
+    "lat": 30.2552,
+    "lon": -88.1100
   }
 ]
