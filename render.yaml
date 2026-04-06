@@ -7,4 +7,6 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.12"
+      - key: DATA_DIR
+        value: /opt/render/project/src/data
     plan: free

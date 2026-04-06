@@ -705,13 +705,37 @@
       document.getElementById(`panel-${spotIdx}-${dayIdx}`).classList.add('active');
     }
 
-    // Range picker — show loading then navigate
+    // Range picker — save to localStorage, show loading, then navigate
     function setRange(offsetDays, numDays) {
+      try {
+        localStorage.setItem('kite_offset', offsetDays);
+        localStorage.setItem('kite_days', numDays);
+      } catch(e) {}
       showLoading();
       setTimeout(function() {
         window.location.href = '/?offset=' + offsetDays + '&days=' + numDays;
       }, 50);
     }
+
+    // Restore saved range on bare page load (no query params)
+    (function() {
+      var params = new URLSearchParams(window.location.search);
+      if (!params.has('offset') && !params.has('days')) {
+        try {
+          var savedOffset = localStorage.getItem('kite_offset');
+          var savedDays = localStorage.getItem('kite_days');
+          if (savedOffset !== null || savedDays !== null) {
+            var o = savedOffset !== null ? parseInt(savedOffset) : 0;
+            var d = savedDays !== null ? parseInt(savedDays) : 7;
+            if (!isNaN(o) && !isNaN(d) && (o !== 0 || d !== 7)) {
+              showLoading();
+              window.location.href = '/?offset=' + o + '&days=' + d;
+              return;
+            }
+          }
+        } catch(e) {}
+      }
+    })();
 
     // Clicking a grid row scrolls to that spot's detail section
     document.querySelectorAll('.grid-table tbody tr').forEach(row => {

@@ -7,6 +7,7 @@ using Flask. Reuses the same Open-Meteo data pipeline as the CLI tool.
 """
 
 import json
+import os
 import sys
 import time
 import uuid
@@ -20,7 +21,16 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for
 
 # ── Configuration ────────────────────────────────────────────────────────────
 
-SPOTS_FILE = Path(__file__).parent / "spots.json"
+_DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).parent))
+_DATA_DIR.mkdir(parents=True, exist_ok=True)
+SPOTS_FILE = _DATA_DIR / "spots.json"
+_DEFAULT_SPOTS = Path(__file__).parent / "spots.json"
+
+# On first run with a custom DATA_DIR, copy the default spots if none exist
+if not SPOTS_FILE.exists() and _DEFAULT_SPOTS.exists() and SPOTS_FILE != _DEFAULT_SPOTS:
+    import shutil
+    shutil.copy2(_DEFAULT_SPOTS, SPOTS_FILE)
+
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 
 HOURLY_PARAMS = [
