@@ -8,9 +8,12 @@ using Flask. Reuses the same Open-Meteo data pipeline as the CLI tool.
 
 import json
 import sys
+import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, date, timedelta
 from pathlib import Path
+from threading import Lock
 
 import requests
 from flask import Flask, render_template, request, jsonify, redirect, url_for
@@ -45,6 +48,11 @@ WIND_IDEAL_MIN = 15
 WIND_IDEAL_MAX = 30
 WIND_MARGINAL_MIN = 12
 WIND_MARGINAL_MAX = 35
+
+# In-memory cache: key = (lat, lon, start, end) -> (timestamp, data)
+_forecast_cache = {}
+_cache_lock = Lock()
+CACHE_TTL = 300  # 5 minutes
 
 WMO_CODES = {
     0: "Clear", 1: "Mostly Clear", 2: "Partly Cloudy", 3: "Overcast",
@@ -172,6 +180,14 @@ def save_spots(spots):
 
 
 def fetch_forecast(lat, lon, start_date=None, end_date=None):
+    # Check cache first
+    cache_key = (lat, lon, start_date, end_date)
+    with _cache_lock:
+        if cache_key in _forecast_cache:
+            ts, data = _forecast_cache[cache_key]
+            if time.time() - ts < CACHE_TTL:
+                return data
+
     params = {
         "latitude": lat,
         "longitude": lon,
@@ -188,7 +204,26 @@ def fetch_forecast(lat, lon, start_date=None, end_date=None):
         params["forecast_days"] = 7
     resp = requests.get(OPEN_METEO_URL, params=params, timeout=15)
     resp.raise_for_status()
-    return resp.json()
+    data = resp.json()
+
+    # Store in cache
+    with _cache_lock:
+        _forecast_cache[cache_key] = (time.time(), data)
+        # Evict stale entries periodically
+        stale = [k for k, (ts, _) in _forecast_cache.items() if time.time() - ts > CACHE_TTL * 2]
+        for k in stale:
+            del _forecast_cache[k]
+
+    return data
+
+
+def _fetch_spot(spot, start_date, end_date):
+    """Fetch forecast for one spot. Returns (spot, data) or (spot, error)."""
+    try:
+        data = fetch_forecast(spot["lat"], spot["lon"], start_date, end_date)
+        return (spot, data, None)
+    except Exception as e:
+        return (spot, None, str(e))
 
 
 # ── Data Processing ──────────────────────────────────────────────────────────
@@ -201,15 +236,25 @@ def build_forecast_data(start_date=None, end_date=None):
     all_spots = []
     best_days = []
 
-    for spot in spots:
-        try:
-            data = fetch_forecast(spot["lat"], spot["lon"], start_date, end_date)
-        except Exception as e:
+    # Fetch all spots in parallel
+    results = []
+    if spots:
+        with ThreadPoolExecutor(max_workers=min(len(spots), 10)) as executor:
+            futures = {executor.submit(_fetch_spot, spot, start_date, end_date): spot for spot in spots}
+            for future in as_completed(futures):
+                results.append(future.result())
+
+    # Preserve original spot order
+    spot_order = {s["name"]: i for i, s in enumerate(spots)}
+    results.sort(key=lambda r: spot_order.get(r[0]["name"], 999))
+
+    for spot, data, error in results:
+        if error:
             all_spots.append({
                 "name": spot["name"],
                 "lat": spot["lat"],
                 "lon": spot["lon"],
-                "error": str(e),
+                "error": error,
                 "days": [],
             })
             continue
@@ -360,6 +405,9 @@ def build_forecast_data(start_date=None, end_date=None):
                     "max_wind": None,
                     "avg_wind": None,
                     "max_gust": None,
+                    "gust_factor": None,
+                    "gust_pct": None,
+                    "avg_temp": None,
                     "dom_dir": "?",
                     "hi": None,
                     "lo": None,

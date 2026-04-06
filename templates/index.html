@@ -679,7 +679,25 @@
     &middot; Wind thresholds: 🟢 15–30 mph &middot; 🟡 12–15 / 30–35 mph &middot; 🔴 &lt;12 / &gt;35 mph
   </footer>
 
+  <!-- Loading overlay -->
+  <div id="loading-overlay" style="display:none; position:fixed; inset:0; background:rgba(15,25,35,0.85); z-index:9999; display:none; align-items:center; justify-content:center; flex-direction:column;">
+    <div style="font-size:2.5rem; margin-bottom:0.5rem; animation: spin 1.2s linear infinite;">🪁</div>
+    <div style="color:var(--text); font-size:1rem; font-weight:600;">Loading forecasts…</div>
+    <div style="color:var(--text-muted); font-size:0.8rem; margin-top:0.3rem;" id="loading-sub">Fetching data for all spots</div>
+  </div>
+  <style>
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+
   <script>
+    function showLoading() {
+      var overlay = document.getElementById('loading-overlay');
+      overlay.style.display = 'flex';
+    }
+
     function switchDay(spotIdx, dayIdx) {
       document.querySelectorAll(`.day-tab[data-spot="${spotIdx}"]`).forEach(t => t.classList.remove('active'));
       document.querySelectorAll(`[id^="panel-${spotIdx}-"]`).forEach(p => p.classList.remove('active'));
@@ -687,9 +705,12 @@
       document.getElementById(`panel-${spotIdx}-${dayIdx}`).classList.add('active');
     }
 
-    // Range picker — simple offset + days navigation
+    // Range picker — show loading then navigate
     function setRange(offsetDays, numDays) {
-      window.location.href = '/?offset=' + offsetDays + '&days=' + numDays;
+      showLoading();
+      setTimeout(function() {
+        window.location.href = '/?offset=' + offsetDays + '&days=' + numDays;
+      }, 50);
     }
 
     // Clicking a grid row scrolls to that spot's detail section
