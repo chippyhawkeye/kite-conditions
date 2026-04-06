@@ -538,7 +538,7 @@
                   <td class="grid-cell">
                     <div class="gc-wind">{{ s.avg_wind or s.max_wind or '–' }}</div>
                     <div class="gc-detail">{{ s.dom_dir }} · {{ s.lo or '–' }}°–{{ s.hi or '–' }}°</div>
-                    <div class="gc-detail">gusts {{ s.max_gust or '–' }}</div>
+                    <div class="gc-detail">gusts {{ s.max_gust or '–' }}{% if s.gust_factor %} · GF {{ s.gust_factor }}×{% endif %}</div>
                     <span class="gc-rating {{ s.rating }}">{{ s.rating_emoji }} {{ s.rating_label }}</span>
                     {% if s.hours %}
                     <div class="hour-dots">

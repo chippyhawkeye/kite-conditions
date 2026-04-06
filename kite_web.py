@@ -82,6 +82,7 @@ def degrees_to_compass(deg):
 
 
 def kite_rating(wind_mph):
+    """Rate a single hour's wind for dot color."""
     if wind_mph is None:
         return "unknown"
     if WIND_IDEAL_MIN <= wind_mph <= WIND_IDEAL_MAX:
@@ -92,6 +93,42 @@ def kite_rating(wind_mph):
         return "maybe"
     else:
         return "nope"
+
+
+def day_kite_rating(daylight_winds, daylight_gusts):
+    """Rate an entire day based on hourly wind consistency and gust factor.
+
+    Philosophy:
+    - Base wind speed (not gusts) determines if you can kite
+    - SEND IT = every daylight hour has rideable wind AND gusts are tame
+    - MAYBE  = most hours rideable but some weak/strong periods, or gusty
+    - NOPE   = not enough consistent wind or dangerously gusty
+    """
+    if not daylight_winds:
+        return "unknown"
+
+    total = len(daylight_winds)
+    ideal = sum(1 for w in daylight_winds if WIND_IDEAL_MIN <= w <= WIND_IDEAL_MAX)
+    rideable = sum(1 for w in daylight_winds if WIND_MARGINAL_MIN <= w <= WIND_MARGINAL_MAX)
+    avg_wind = sum(daylight_winds) / total
+
+    # Gust factor: ratio of max gust to average base wind
+    max_gust = max(daylight_gusts) if daylight_gusts else 0
+    gust_factor = (max_gust / avg_wind) if avg_wind > 0 else 0
+
+    # NOPE: fewer than half the hours are even rideable, or extreme gusts
+    if rideable < total * 0.5 or max_gust > WIND_MARGINAL_MAX:
+        return "nope"
+
+    # SEND IT: every hour is ideal range AND gust factor is tame (≤ 1.5)
+    if ideal == total and gust_factor <= 1.5:
+        return "send-it"
+
+    # MAYBE: decent wind but not perfect consistency or gusty
+    if rideable >= total * 0.6:
+        return "maybe"
+
+    return "nope"
 
 
 def rating_label(rating):
@@ -202,22 +239,24 @@ def build_forecast_data(start_date=None, end_date=None):
             max_gust = daily["wind_gusts_10m_max"][day_idx] if day_idx < len(daily["wind_gusts_10m_max"]) else None
             dom_dir_deg = daily["wind_direction_10m_dominant"][day_idx] if day_idx < len(daily["wind_direction_10m_dominant"]) else None
 
-            rating = kite_rating(max_wind)
-
             hours = []
             daylight_winds = []
+            daylight_gusts = []
             for i in hour_indices:
                 if not hourly["is_day"][i]:
                     continue
                 wind = hourly["wind_speed_10m"][i]
+                gust = hourly["wind_gusts_10m"][i]
                 if wind is not None:
                     daylight_winds.append(wind)
+                if gust is not None:
+                    daylight_gusts.append(gust)
                 hours.append({
                     "time": times[i][-5:],
                     "temp": round(hourly["temperature_2m"][i]) if hourly["temperature_2m"][i] is not None else None,
                     "feels": round(hourly["apparent_temperature"][i]) if hourly["apparent_temperature"][i] is not None else None,
                     "wind": round(wind) if wind is not None else None,
-                    "gust": round(hourly["wind_gusts_10m"][i]) if hourly["wind_gusts_10m"][i] is not None else None,
+                    "gust": round(gust) if gust is not None else None,
                     "dir": degrees_to_compass(hourly["wind_direction_10m"][i]),
                     "sky": weather_desc(hourly["weather_code"][i]),
                     "sky_icon": weather_icon(hourly["weather_code"][i]),
@@ -225,6 +264,12 @@ def build_forecast_data(start_date=None, end_date=None):
                 })
 
             avg_wind = round(sum(daylight_winds) / len(daylight_winds)) if daylight_winds else None
+
+            # Daily rating: based on hourly consistency + gust factor
+            day_rating = day_kite_rating(daylight_winds, daylight_gusts)
+            gust_factor = None
+            if avg_wind and daylight_gusts:
+                gust_factor = round(max(daylight_gusts) / (sum(daylight_winds) / len(daylight_winds)), 1)
 
             day_data = {
                 "date": date_str,
@@ -238,24 +283,25 @@ def build_forecast_data(start_date=None, end_date=None):
                 "max_wind": round(max_wind) if max_wind is not None else None,
                 "avg_wind": avg_wind,
                 "max_gust": round(max_gust) if max_gust is not None else None,
+                "gust_factor": gust_factor,
                 "dom_dir": degrees_to_compass(dom_dir_deg),
-                "rating": rating,
-                "rating_label": rating_label(rating),
-                "rating_emoji": rating_emoji(rating),
+                "rating": day_rating,
+                "rating_label": rating_label(day_rating),
+                "rating_emoji": rating_emoji(day_rating),
                 "hours": hours,
             }
             spot_days.append(day_data)
 
             # Best days summary
-            if rating in ("send-it", "maybe"):
+            if day_rating in ("send-it", "maybe"):
                 best_days.append({
                     "spot": spot["name"],
                     "day_name": dt.strftime("%a %b %d"),
                     "max_wind": round(max_wind) if max_wind is not None else None,
                     "dom_dir": degrees_to_compass(dom_dir_deg),
-                    "rating": rating,
-                    "rating_label": rating_label(rating),
-                    "rating_emoji": rating_emoji(rating),
+                    "rating": day_rating,
+                    "rating_label": rating_label(day_rating),
+                    "rating_emoji": rating_emoji(day_rating),
                 })
 
         all_spots.append({
