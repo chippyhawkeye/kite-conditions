@@ -348,53 +348,63 @@
       margin-right: 2px;
     }
 
-    /* ── Date Picker ──────────────────────── */
-    .date-picker {
+    /* ── Range Picker ─────────────────────── */
+    .range-picker {
       display: flex;
       align-items: center;
-      gap: 1rem;
+      gap: 0.6rem;
       margin-bottom: 1.5rem;
       flex-wrap: wrap;
     }
 
-    .date-picker label {
+    .range-picker .range-label {
       font-size: 0.82rem;
       font-weight: 600;
       color: var(--text-muted);
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
+      margin-right: 0.2rem;
     }
 
-    .date-picker input[type="date"] {
+    .range-picker .range-btn {
       background: var(--card);
       border: 1px solid var(--border);
       color: var(--text);
-      padding: 0.4rem 0.6rem;
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .range-picker .range-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .range-picker .range-btn.active { background: var(--accent); color: #0f1923; border-color: var(--accent); }
+
+    .range-picker .range-offset {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin-left: 0.5rem;
+      padding-left: 0.8rem;
+      border-left: 1px solid var(--border);
+    }
+
+    .range-picker .range-offset label {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .range-picker select {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.35rem 0.5rem;
       border-radius: 6px;
       font-size: 0.82rem;
       font-family: inherit;
       cursor: pointer;
     }
 
-    .date-picker input[type="date"]:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
-
-    .date-picker button {
-      background: var(--accent);
-      color: #0f1923;
-      border: none;
-      padding: 0.4rem 1rem;
-      border-radius: 6px;
-      font-size: 0.82rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: opacity 0.15s;
-    }
-
-    .date-picker button:hover { opacity: 0.85; }
+    .range-picker select:focus { outline: none; border-color: var(--accent); }
 
     /* ── Responsive ────────────────────────── */
     @media (max-width: 640px) {
@@ -419,15 +429,25 @@
 
   <div class="container">
 
-    <!-- ── Date Range Picker ─────────────── -->
-    <div class="date-picker" id="date-picker">
-      <label>From
-        <input type="date" id="date-start" value="{{ start_date }}" min="{{ today }}" max="{{ max_end }}">
-      </label>
-      <label>To
-        <input type="date" id="date-end" value="{{ end_date }}" min="{{ today }}" max="{{ max_end }}">
-      </label>
-      <button type="button" id="date-update-btn">Update</button>
+    <!-- ── Range Picker ─────────────────── -->
+    <div class="range-picker">
+      <span class="range-label">Forecast:</span>
+      <button class="range-btn{% if num_days == 3 %} active{% endif %}" onclick="setRange(0, 3)">3 days</button>
+      <button class="range-btn{% if num_days == 5 %} active{% endif %}" onclick="setRange(0, 5)">5 days</button>
+      <button class="range-btn{% if num_days == 7 %} active{% endif %}" onclick="setRange(0, 7)">7 days</button>
+      <button class="range-btn{% if num_days == 10 %} active{% endif %}" onclick="setRange(0, 10)">10 days</button>
+      <button class="range-btn{% if num_days == 14 %} active{% endif %}" onclick="setRange(0, 14)">14 days</button>
+      <div class="range-offset">
+        <label for="start-offset">Starting</label>
+        <select id="start-offset" onchange="setRange(parseInt(this.value), {{ num_days }})">
+          <option value="0"{% if start_offset == 0 %} selected{% endif %}>Today</option>
+          <option value="1"{% if start_offset == 1 %} selected{% endif %}>Tomorrow</option>
+          <option value="2"{% if start_offset == 2 %} selected{% endif %}>In 2 days</option>
+          <option value="3"{% if start_offset == 3 %} selected{% endif %}>In 3 days</option>
+          <option value="5"{% if start_offset == 5 %} selected{% endif %}>In 5 days</option>
+          <option value="7"{% if start_offset == 7 %} selected{% endif %}>In 7 days</option>
+        </select>
+      </div>
     </div>
 
     <!-- ── Overview Grid ─────────────────── -->
@@ -592,14 +612,10 @@
       document.getElementById(`panel-${spotIdx}-${dayIdx}`).classList.add('active');
     }
 
-    // Date picker — navigate via JS to avoid Simple Browser form quirks
-    document.getElementById('date-update-btn').addEventListener('click', function() {
-      var s = document.getElementById('date-start').value;
-      var ed = document.getElementById('date-end').value;
-      if (s && ed) {
-        window.location.href = '/?start=' + encodeURIComponent(s) + '&end=' + encodeURIComponent(ed);
-      }
-    });
+    // Range picker — simple offset + days navigation
+    function setRange(offsetDays, numDays) {
+      window.location.href = '/?offset=' + offsetDays + '&days=' + numDays;
+    }
 
     // Clicking a grid row scrolls to that spot's detail section
     document.querySelectorAll('.grid-table tbody tr').forEach(row => {

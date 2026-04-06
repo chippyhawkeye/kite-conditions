@@ -318,35 +318,33 @@ app = Flask(__name__)
 
 @app.route("/")
 def index():
-    # Date range from query params, default to today + 7 days
     today = date.today()
-    default_end = today + timedelta(days=6)
-    max_end = today + timedelta(days=15)  # Open-Meteo supports up to 16 days
+    max_days_out = 16  # Open-Meteo supports up to 16 days
 
-    start_str = request.args.get("start", today.isoformat())
-    end_str = request.args.get("end", default_end.isoformat())
-
+    # Accept offset (days from today) and days (duration) params
     try:
-        start_date = date.fromisoformat(start_str)
-        end_date = date.fromisoformat(end_str)
-    except ValueError:
-        start_date = today
-        end_date = default_end
+        offset = int(request.args.get("offset", 0))
+    except (ValueError, TypeError):
+        offset = 0
+    try:
+        num_days = int(request.args.get("days", 7))
+    except (ValueError, TypeError):
+        num_days = 7
 
     # Clamp to valid range
-    if start_date < today:
-        start_date = today
-    if end_date > max_end:
-        end_date = max_end
-    if end_date < start_date:
-        end_date = start_date
+    offset = max(0, min(offset, max_days_out - 1))
+    num_days = max(1, min(num_days, max_days_out - offset))
+
+    start_date = today + timedelta(days=offset)
+    end_date = start_date + timedelta(days=num_days - 1)
 
     forecast = build_forecast_data(start_date.isoformat(), end_date.isoformat())
+    forecast["num_days"] = num_days
+    forecast["start_offset"] = offset
     forecast["start_date"] = start_date.isoformat()
     forecast["end_date"] = end_date.isoformat()
     forecast["today"] = today.isoformat()
-    forecast["max_end"] = max_end.isoformat()
-    forecast["num_days"] = (end_date - start_date).days + 1
+    forecast["max_end"] = (today + timedelta(days=max_days_out - 1)).isoformat()
     return render_template("index.html", **forecast)
 
 
