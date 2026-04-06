@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🪁 Kite Conditions</title>
+  <style>
+    :root {
+      --bg: #0f1923;
+      --card: #1a2733;
+      --card-hover: #1e2f3f;
+      --border: #2a3f52;
+      --text: #e4e8ec;
+      --text-muted: #8899a6;
+      --accent: #38bdf8;
+      --send-it: #22c55e;
+      --send-it-bg: rgba(34, 197, 94, 0.12);
+      --maybe: #eab308;
+      --maybe-bg: rgba(234, 179, 8, 0.12);
+      --nope: #ef4444;
+      --nope-bg: rgba(239, 68, 68, 0.10);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(135deg, #0c2135 0%, #1a3550 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 1.5rem 1rem;
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    header .subtitle {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-top: 0.3rem;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem;
+    }
+
+    /* ── Best Days Summary ─────────────────── */
+    .best-days {
+      margin-bottom: 2rem;
+    }
+
+    .best-days h2 {
+      font-size: 1.3rem;
+      margin-bottom: 1rem;
+      color: var(--accent);
+    }
+
+    .best-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 0.6rem;
+    }
+
+    .best-card {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.7rem 1rem;
+      transition: background 0.15s;
+    }
+
+    .best-card:hover { background: var(--card-hover); }
+
+    .best-card.send-it { border-left: 3px solid var(--send-it); }
+    .best-card.maybe { border-left: 3px solid var(--maybe); }
+
+    .best-card .rating-dot {
+      font-size: 1.3rem;
+      flex-shrink: 0;
+    }
+
+    .best-card .info { flex: 1; min-width: 0; }
+    .best-card .spot-name {
+      font-weight: 600;
+      font-size: 0.85rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .best-card .day-info {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+    .best-card .wind-badge {
+      font-size: 0.85rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    /* ── Spot Sections ─────────────────────── */
+    .spot-section {
+      margin-bottom: 2.5rem;
+    }
+
+    .spot-header {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .spot-header h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+    }
+
+    .spot-meta {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    /* ── Day Cards (tab-like) ──────────────── */
+    .day-tabs {
+      display: flex;
+      gap: 0;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 0;
+    }
+
+    .day-tab {
+      flex: 0 0 auto;
+      padding: 0.6rem 1.1rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-align: center;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .day-tab:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+
+    .day-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .day-tab .tab-rating { font-size: 0.7rem; display: block; margin-top: 2px; }
+
+    .day-panel {
+      display: none;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 10px 10px;
+      overflow: hidden;
+    }
+
+    .day-panel.active { display: block; }
+
+    .day-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      padding: 1rem 1.2rem;
+      background: rgba(255,255,255,0.02);
+      border-bottom: 1px solid var(--border);
+      align-items: center;
+    }
+
+    .day-summary .stat {
+      text-align: center;
+    }
+
+    .day-summary .stat-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    .day-summary .stat-value {
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .day-summary .rating-badge {
+      display: inline-block;
+      padding: 0.25rem 0.7rem;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    .rating-badge.send-it { background: var(--send-it-bg); color: var(--send-it); }
+    .rating-badge.maybe { background: var(--maybe-bg); color: var(--maybe); }
+    .rating-badge.nope { background: var(--nope-bg); color: var(--nope); }
+
+    /* ── Hourly Table ──────────────────────── */
+    .hourly-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    .hourly-table thead th {
+      position: sticky;
+      top: 0;
+      background: var(--card);
+      padding: 0.6rem 0.7rem;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .hourly-table tbody tr {
+      transition: background 0.1s;
+    }
+
+    .hourly-table tbody tr:hover {
+      background: rgba(255,255,255,0.03);
+    }
+
+    .hourly-table td {
+      padding: 0.5rem 0.7rem;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      white-space: nowrap;
+    }
+
+    .hourly-table .wind-cell {
+      font-weight: 700;
+    }
+
+    .hourly-table .rating-cell {
+      font-weight: 600;
+      font-size: 0.78rem;
+    }
+
+    .hourly-table .rating-cell.send-it { color: var(--send-it); }
+    .hourly-table .rating-cell.maybe { color: var(--maybe); }
+    .hourly-table .rating-cell.nope { color: var(--nope); opacity: 0.5; }
+
+    .hourly-table tr.send-it-row { background: var(--send-it-bg); }
+    .hourly-table tr.maybe-row { }
+    .hourly-table tr.nope-row { opacity: 0.55; }
+
+    .text-right { text-align: right; }
+
+    /* ── Footer ────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      border-top: 1px solid var(--border);
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    /* ── Wind Direction Arrow ──────────────── */
+    .wind-arrow {
+      display: inline-block;
+      font-size: 0.9rem;
+      margin-right: 2px;
+    }
+
+    /* ── Responsive ────────────────────────── */
+    @media (max-width: 640px) {
+      header h1 { font-size: 1.4rem; }
+      .best-grid { grid-template-columns: 1fr; }
+      .day-summary { gap: 1rem; }
+      .hourly-table { font-size: 0.75rem; }
+      .hourly-table td, .hourly-table th { padding: 0.4rem 0.5rem; }
+      .hide-mobile { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🪁 Kite Conditions</h1>
+    <div class="subtitle">7-Day Forecast &middot; Generated {{ generated }}</div>
+  </header>
+
+  <div class="container">
+
+    <!-- ── Best Days ──────────────────────── -->
+    {% if best_days %}
+    <section class="best-days">
+      <h2>🏆 Best Days to Kite</h2>
+      <div class="best-grid">
+        {% for bd in best_days %}
+        <div class="best-card {{ bd.rating }}">
+          <div class="rating-dot">{{ bd.rating_emoji }}</div>
+          <div class="info">
+            <div class="spot-name">{{ bd.spot }}</div>
+            <div class="day-info">{{ bd.day_name }} &middot; {{ bd.dom_dir }} {{ bd.max_wind }} mph</div>
+          </div>
+          <div class="wind-badge">{{ bd.rating_label }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    <!-- ── Spot Forecasts ─────────────────── -->
+    {% for spot in spots %}
+    <section class="spot-section" id="spot-{{ loop.index }}">
+      <div class="spot-header">
+        <h2>📍 {{ spot.name }}</h2>
+        <span class="spot-meta">{{ spot.lat }}, {{ spot.lon }} &middot; {{ spot.timezone }}</span>
+      </div>
+
+      {% if spot.error is defined %}
+        <p style="color: var(--nope);">❌ {{ spot.error }}</p>
+      {% else %}
+
+      <!-- Day tabs -->
+      {% set spot_idx = loop.index %}
+      <div class="day-tabs" role="tablist">
+        {% for day in spot.days %}
+        <button class="day-tab {% if loop.first %}active{% endif %}"
+                role="tab"
+                data-spot="{{ spot_idx }}"
+                data-day="{{ loop.index }}"
+                onclick="switchDay({{ spot_idx }}, {{ loop.index }})">
+          <div>{{ day.day_short }}</div>
+          <div style="font-size:0.72rem;color:var(--text-muted)">{{ day.month_day }}</div>
+          <div class="tab-rating">{{ day.rating_emoji }}</div>
+        </button>
+        {% endfor %}
+      </div>
+
+      <!-- Day panels -->
+      {% for day in spot.days %}
+      <div class="day-panel {% if loop.first %}active{% endif %}"
+           id="panel-{{ spot_idx }}-{{ loop.index }}">
+
+        <div class="day-summary">
+          <div class="stat">
+            <div class="stat-label">Rating</div>
+            <div><span class="rating-badge {{ day.rating }}">{{ day.rating_emoji }} {{ day.rating_label }}</span></div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Wind</div>
+            <div class="stat-value">{{ day.max_wind }} <span style="font-size:0.7rem;font-weight:400">mph</span></div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Gusts</div>
+            <div class="stat-value">{{ day.max_gust }} <span style="font-size:0.7rem;font-weight:400">mph</span></div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Direction</div>
+            <div class="stat-value">{{ day.dom_dir }}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Temp</div>
+            <div class="stat-value">{{ day.lo }}° – {{ day.hi }}°</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Daylight</div>
+            <div class="stat-value" style="font-size:0.9rem">{{ day.sunrise }} → {{ day.sunset }}</div>
+          </div>
+        </div>
+
+        <div style="overflow-x:auto">
+        <table class="hourly-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Sky</th>
+              <th class="text-right">Temp</th>
+              <th class="text-right hide-mobile">Feels</th>
+              <th class="text-right">Wind</th>
+              <th class="text-right">Gust</th>
+              <th>Dir</th>
+              <th>Rating</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for h in day.hours %}
+            <tr class="{{ h.rating }}-row">
+              <td>{{ h.time }}</td>
+              <td>{{ h.sky_icon }} {{ h.sky }}</td>
+              <td class="text-right">{{ h.temp }}°</td>
+              <td class="text-right hide-mobile">{{ h.feels }}°</td>
+              <td class="text-right wind-cell">{{ h.wind }}</td>
+              <td class="text-right">{{ h.gust }}</td>
+              <td>{{ h.dir }}</td>
+              <td class="rating-cell {{ h.rating }}">
+                {% if h.rating == 'send-it' %}🟢 SEND IT
+                {% elif h.rating == 'maybe' %}🟡 MAYBE
+                {% else %}🔴 NOPE{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+      </div>
+      {% endfor %}
+
+      {% endif %}
+    </section>
+    {% endfor %}
+
+  </div>
+
+  <footer>
+    Data from <a href="https://open-meteo.com/" target="_blank">Open-Meteo.com</a> (NOAA GFS, DWD ICON, ECMWF)
+    &middot; Wind thresholds: 🟢 15–30 mph &middot; 🟡 12–15 / 30–35 mph &middot; 🔴 &lt;12 / &gt;35 mph
+  </footer>
+
+  <script>
+    function switchDay(spotIdx, dayIdx) {
+      // Deactivate all tabs and panels for this spot
+      document.querySelectorAll(`.day-tab[data-spot="${spotIdx}"]`).forEach(t => t.classList.remove('active'));
+      document.querySelectorAll(`[id^="panel-${spotIdx}-"]`).forEach(p => p.classList.remove('active'));
+
+      // Activate selected
+      document.querySelector(`.day-tab[data-spot="${spotIdx}"][data-day="${dayIdx}"]`).classList.add('active');
+      document.getElementById(`panel-${spotIdx}-${dayIdx}`).classList.add('active');
+    }
+  </script>
+
+</body>
+</html>

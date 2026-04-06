@@ -1,0 +1,264 @@
+#!/usr/bin/env python3
+"""
+Kite Conditions — Web Dashboard
+
+Serves the 7-day kiteboarding forecast as a responsive website
+using Flask. Reuses the same Open-Meteo data pipeline as the CLI tool.
+"""
+
+import json
+import sys
+from datetime import datetime
+from pathlib import Path
+
+import requests
+from flask import Flask, render_template
+
+# ── Configuration ────────────────────────────────────────────────────────────
+
+SPOTS_FILE = Path(__file__).parent / "spots.json"
+OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
+
+HOURLY_PARAMS = [
+    "temperature_2m",
+    "apparent_temperature",
+    "wind_speed_10m",
+    "wind_direction_10m",
+    "wind_gusts_10m",
+    "weather_code",
+    "is_day",
+]
+
+DAILY_PARAMS = [
+    "sunrise",
+    "sunset",
+    "daylight_duration",
+    "temperature_2m_max",
+    "temperature_2m_min",
+    "wind_speed_10m_max",
+    "wind_gusts_10m_max",
+    "wind_direction_10m_dominant",
+]
+
+WIND_IDEAL_MIN = 15
+WIND_IDEAL_MAX = 30
+WIND_MARGINAL_MIN = 12
+WIND_MARGINAL_MAX = 35
+
+WMO_CODES = {
+    0: "Clear", 1: "Mostly Clear", 2: "Partly Cloudy", 3: "Overcast",
+    45: "Fog", 48: "Rime Fog",
+    51: "Light Drizzle", 53: "Drizzle", 55: "Heavy Drizzle",
+    61: "Light Rain", 63: "Rain", 65: "Heavy Rain",
+    71: "Light Snow", 73: "Snow", 75: "Heavy Snow",
+    80: "Light Showers", 81: "Showers", 82: "Heavy Showers",
+    95: "Thunderstorm", 96: "T-storm + Hail", 99: "T-storm + Heavy Hail",
+}
+
+WMO_ICONS = {
+    0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️",
+    45: "🌫️", 48: "🌫️",
+    51: "🌦️", 53: "🌧️", 55: "🌧️",
+    61: "🌧️", 63: "🌧️", 65: "🌧️",
+    71: "🌨️", 73: "🌨️", 75: "🌨️",
+    80: "🌦️", 81: "🌧️", 82: "⛈️",
+    95: "⛈️", 96: "⛈️", 99: "⛈️",
+}
+
+COMPASS = [
+    "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+    "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW",
+]
+
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
+
+def degrees_to_compass(deg):
+    if deg is None:
+        return "?"
+    idx = round(deg / 22.5) % 16
+    return COMPASS[idx]
+
+
+def kite_rating(wind_mph):
+    if wind_mph is None:
+        return "unknown"
+    if WIND_IDEAL_MIN <= wind_mph <= WIND_IDEAL_MAX:
+        return "send-it"
+    elif WIND_MARGINAL_MIN <= wind_mph < WIND_IDEAL_MIN:
+        return "maybe"
+    elif WIND_IDEAL_MAX < wind_mph <= WIND_MARGINAL_MAX:
+        return "maybe"
+    else:
+        return "nope"
+
+
+def rating_label(rating):
+    return {"send-it": "SEND IT", "maybe": "MAYBE", "nope": "NOPE", "unknown": "?"}.get(rating, "?")
+
+
+def rating_emoji(rating):
+    return {"send-it": "🟢", "maybe": "🟡", "nope": "🔴", "unknown": "⚪"}.get(rating, "⚪")
+
+
+def weather_desc(code):
+    return WMO_CODES.get(code, f"Code {code}")
+
+
+def weather_icon(code):
+    return WMO_ICONS.get(code, "🌡️")
+
+
+def load_spots():
+    if not SPOTS_FILE.exists():
+        print(f"❌ Spots file not found: {SPOTS_FILE}")
+        sys.exit(1)
+    with open(SPOTS_FILE) as f:
+        return json.load(f)
+
+
+def fetch_forecast(lat, lon):
+    params = {
+        "latitude": lat,
+        "longitude": lon,
+        "hourly": ",".join(HOURLY_PARAMS),
+        "daily": ",".join(DAILY_PARAMS),
+        "temperature_unit": "fahrenheit",
+        "wind_speed_unit": "mph",
+        "timezone": "auto",
+        "forecast_days": 7,
+    }
+    resp = requests.get(OPEN_METEO_URL, params=params, timeout=15)
+    resp.raise_for_status()
+    return resp.json()
+
+
+# ── Data Processing ──────────────────────────────────────────────────────────
+
+def build_forecast_data():
+    """Fetch and structure all forecast data for the template."""
+    spots = load_spots()
+    generated = datetime.now().strftime("%A, %B %d %Y at %I:%M %p")
+
+    all_spots = []
+    best_days = []
+
+    for spot in spots:
+        try:
+            data = fetch_forecast(spot["lat"], spot["lon"])
+        except Exception as e:
+            all_spots.append({
+                "name": spot["name"],
+                "lat": spot["lat"],
+                "lon": spot["lon"],
+                "error": str(e),
+                "days": [],
+            })
+            continue
+
+        tz = data.get("timezone", "UTC")
+        hourly = data["hourly"]
+        daily = data["daily"]
+        times = hourly["time"]
+
+        # Group hours by date
+        days_map = {}
+        for i, t in enumerate(times):
+            date_str = t[:10]
+            if date_str not in days_map:
+                days_map[date_str] = []
+            days_map[date_str].append(i)
+
+        spot_days = []
+        for day_idx, (date_str, hour_indices) in enumerate(days_map.items()):
+            dt = datetime.strptime(date_str, "%Y-%m-%d")
+
+            sunrise = daily["sunrise"][day_idx][-5:] if day_idx < len(daily["sunrise"]) else "?"
+            sunset = daily["sunset"][day_idx][-5:] if day_idx < len(daily["sunset"]) else "?"
+            hi = daily["temperature_2m_max"][day_idx] if day_idx < len(daily["temperature_2m_max"]) else None
+            lo = daily["temperature_2m_min"][day_idx] if day_idx < len(daily["temperature_2m_min"]) else None
+            max_wind = daily["wind_speed_10m_max"][day_idx] if day_idx < len(daily["wind_speed_10m_max"]) else None
+            max_gust = daily["wind_gusts_10m_max"][day_idx] if day_idx < len(daily["wind_gusts_10m_max"]) else None
+            dom_dir_deg = daily["wind_direction_10m_dominant"][day_idx] if day_idx < len(daily["wind_direction_10m_dominant"]) else None
+
+            rating = kite_rating(max_wind)
+
+            hours = []
+            for i in hour_indices:
+                if not hourly["is_day"][i]:
+                    continue
+                wind = hourly["wind_speed_10m"][i]
+                hours.append({
+                    "time": times[i][-5:],
+                    "temp": round(hourly["temperature_2m"][i]) if hourly["temperature_2m"][i] is not None else None,
+                    "feels": round(hourly["apparent_temperature"][i]) if hourly["apparent_temperature"][i] is not None else None,
+                    "wind": round(wind) if wind is not None else None,
+                    "gust": round(hourly["wind_gusts_10m"][i]) if hourly["wind_gusts_10m"][i] is not None else None,
+                    "dir": degrees_to_compass(hourly["wind_direction_10m"][i]),
+                    "sky": weather_desc(hourly["weather_code"][i]),
+                    "sky_icon": weather_icon(hourly["weather_code"][i]),
+                    "rating": kite_rating(wind),
+                })
+
+            day_data = {
+                "date": date_str,
+                "day_name": dt.strftime("%A"),
+                "day_short": dt.strftime("%a"),
+                "month_day": dt.strftime("%b %d"),
+                "sunrise": sunrise,
+                "sunset": sunset,
+                "hi": round(hi) if hi is not None else None,
+                "lo": round(lo) if lo is not None else None,
+                "max_wind": round(max_wind) if max_wind is not None else None,
+                "max_gust": round(max_gust) if max_gust is not None else None,
+                "dom_dir": degrees_to_compass(dom_dir_deg),
+                "rating": rating,
+                "rating_label": rating_label(rating),
+                "rating_emoji": rating_emoji(rating),
+                "hours": hours,
+            }
+            spot_days.append(day_data)
+
+            # Best days summary
+            if rating in ("send-it", "maybe"):
+                best_days.append({
+                    "spot": spot["name"],
+                    "day_name": dt.strftime("%a %b %d"),
+                    "max_wind": round(max_wind) if max_wind is not None else None,
+                    "dom_dir": degrees_to_compass(dom_dir_deg),
+                    "rating": rating,
+                    "rating_label": rating_label(rating),
+                    "rating_emoji": rating_emoji(rating),
+                })
+
+        all_spots.append({
+            "name": spot["name"],
+            "lat": spot["lat"],
+            "lon": spot["lon"],
+            "timezone": tz,
+            "days": spot_days,
+        })
+
+    return {
+        "generated": generated,
+        "spots": all_spots,
+        "best_days": best_days,
+    }
+
+
+# ── Flask App ────────────────────────────────────────────────────────────────
+
+app = Flask(__name__)
+
+
+@app.route("/")
+def index():
+    forecast = build_forecast_data()
+    return render_template("index.html", **forecast)
+
+
+if __name__ == "__main__":
+    print("🪁 Kite Conditions — Web Dashboard")
+    print("   http://localhost:5555")
+    print("   Press Ctrl+C to quit\n")
+    app.run(debug=True, port=5555)
