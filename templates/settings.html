@@ -212,6 +212,49 @@
       color: var(--danger);
     }
 
+    .lookup-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: flex-end;
+    }
+    .lookup-row .form-group { flex: 1; }
+    .btn-lookup {
+      background: var(--accent);
+      color: #0f1923;
+      border: none;
+      padding: 0.45rem 0.7rem;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      height: fit-content;
+    }
+    .btn-lookup:hover { opacity: 0.85; }
+    .btn-lookup:disabled { opacity: 0.4; cursor: default; }
+
+    .geo-results {
+      background: var(--bg);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      margin-top: 0.3rem;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .geo-results .geo-item {
+      padding: 0.5rem 0.7rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.1s;
+    }
+    .geo-results .geo-item:last-child { border-bottom: none; }
+    .geo-results .geo-item:hover { background: var(--card-hover); }
+    .geo-results .geo-item .geo-coords {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+    }
+
     @media (max-width: 640px) {
       .spot-card { flex-direction: column; align-items: stretch; }
       .spot-actions { justify-content: flex-end; }
@@ -242,20 +285,22 @@
     <div id="add-form" style="display:none;">
       <div class="spot-form">
         <h3>Add New Location</h3>
-        <div class="form-row">
+        <div class="form-row lookup-row">
           <div class="form-group">
             <label>Location Name</label>
-            <input type="text" id="add-name" placeholder="e.g. Cape Hatteras, NC">
+            <input type="text" id="add-name" placeholder="e.g. Cape Hatteras, NC" onkeydown="if(event.key==='Enter'){event.preventDefault();lookupGeo('add');}">
           </div>
+          <button class="btn btn-lookup" onclick="lookupGeo('add')" id="add-lookup-btn">🔍 Lookup</button>
         </div>
+        <div id="add-geo-results" style="display:none"></div>
         <div class="form-row">
           <div class="form-group">
             <label>Latitude</label>
-            <input type="text" id="add-lat" placeholder="e.g. 35.2225">
+            <input type="text" id="add-lat" placeholder="auto-filled by lookup">
           </div>
           <div class="form-group">
             <label>Longitude</label>
-            <input type="text" id="add-lon" placeholder="e.g. -75.6350">
+            <input type="text" id="add-lon" placeholder="auto-filled by lookup">
           </div>
         </div>
         <div class="form-actions">
@@ -347,10 +392,12 @@
       var form = document.createElement('div');
       form.className = 'spot-form edit-form-inline';
       form.innerHTML = '<h3>Edit Location</h3>' +
-        '<div class="form-row">' +
+        '<div class="form-row lookup-row">' +
           '<div class="form-group"><label>Location Name</label>' +
-            '<input type="text" id="edit-name-' + id + '" value="' + name + '"></div>' +
+            '<input type="text" id="edit-name-' + id + '" value="' + name + '" onkeydown="if(event.key===\'Enter\'){event.preventDefault();lookupGeo(\'edit-' + id + '\');}"></div>' +
+          '<button class="btn btn-lookup" onclick="lookupGeo(\'edit-' + id + '\')" id="edit-' + id + '-lookup-btn">🔍 Lookup</button>' +
         '</div>' +
+        '<div id="edit-' + id + '-geo-results" style="display:none"></div>' +
         '<div class="form-row">' +
           '<div class="form-group"><label>Latitude</label>' +
             '<input type="text" id="edit-lat-' + id + '" value="' + lat + '"></div>' +
@@ -420,6 +467,93 @@
       };
       xhr.onerror = function() { showToast('Network error', true); };
       xhr.send();
+    }
+
+    function lookupGeo(prefix) {
+      // prefix is 'add' for the add form, or 'edit-<id>' for edit forms
+      var nameInput, latInput, lonInput, resultsDiv, btn;
+      if (prefix === 'add') {
+        nameInput = document.getElementById('add-name');
+        latInput = document.getElementById('add-lat');
+        lonInput = document.getElementById('add-lon');
+        resultsDiv = document.getElementById('add-geo-results');
+        btn = document.getElementById('add-lookup-btn');
+      } else {
+        var id = prefix.replace('edit-', '');
+        nameInput = document.getElementById('edit-name-' + id);
+        latInput = document.getElementById('edit-lat-' + id);
+        lonInput = document.getElementById('edit-lon-' + id);
+        resultsDiv = document.getElementById(prefix + '-geo-results');
+        btn = document.getElementById(prefix + '-lookup-btn');
+      }
+
+      var q = nameInput.value.trim();
+      if (!q) { showToast('Enter a location name first', true); return; }
+
+      btn.disabled = true;
+      btn.textContent = '⏳ Looking up…';
+      resultsDiv.style.display = 'none';
+
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', '/api/geocode?q=' + encodeURIComponent(q));
+      xhr.onload = function() {
+        btn.disabled = false;
+        btn.textContent = '🔍 Lookup';
+        if (xhr.status === 200) {
+          var results = JSON.parse(xhr.responseText);
+          if (results.length === 0) {
+            showToast('No results found for "' + q + '"', true);
+            return;
+          }
+          if (results.length === 1) {
+            // Auto-select the only result
+            selectGeoResult(prefix, results[0]);
+            return;
+          }
+          // Show picker
+          var html = '<div class="geo-results">';
+          for (var i = 0; i < results.length; i++) {
+            var r = results[i];
+            html += '<div class="geo-item" onclick=\'selectGeoResult("' + prefix + '", ' + JSON.stringify(r) + ')\'>';
+            html += '<div>' + r.name + '</div>';
+            html += '<div class="geo-coords">' + r.lat + ', ' + r.lon + '</div>';
+            html += '</div>';
+          }
+          html += '</div>';
+          resultsDiv.innerHTML = html;
+          resultsDiv.style.display = 'block';
+        } else {
+          var resp = JSON.parse(xhr.responseText);
+          showToast(resp.error || 'Lookup failed', true);
+        }
+      };
+      xhr.onerror = function() {
+        btn.disabled = false;
+        btn.textContent = '🔍 Lookup';
+        showToast('Network error', true);
+      };
+      xhr.send();
+    }
+
+    function selectGeoResult(prefix, result) {
+      var latInput, lonInput, nameInput, resultsDiv;
+      if (prefix === 'add') {
+        latInput = document.getElementById('add-lat');
+        lonInput = document.getElementById('add-lon');
+        nameInput = document.getElementById('add-name');
+        resultsDiv = document.getElementById('add-geo-results');
+      } else {
+        var id = prefix.replace('edit-', '');
+        latInput = document.getElementById('edit-lat-' + id);
+        lonInput = document.getElementById('edit-lon-' + id);
+        nameInput = document.getElementById('edit-name-' + id);
+        resultsDiv = document.getElementById(prefix + '-geo-results');
+      }
+      latInput.value = result.lat;
+      lonInput.value = result.lon;
+      nameInput.value = result.name;
+      resultsDiv.style.display = 'none';
+      showToast('📍 ' + result.name + ' (' + result.lat + ', ' + result.lon + ')');
     }
   </script>
 

@@ -486,6 +486,35 @@ def api_delete_spot(spot_id):
     return jsonify({"ok": True})
 
 
+@app.route("/api/geocode")
+def api_geocode():
+    """Geocode a location name using Open-Meteo's free geocoding API."""
+    q = request.args.get("q", "").strip()
+    if not q:
+        return jsonify({"error": "Query required"}), 400
+    try:
+        resp = requests.get(
+            "https://geocoding-api.open-meteo.com/v1/search",
+            params={"name": q, "count": 5, "language": "en", "format": "json"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        results = []
+        for r in data.get("results", []):
+            label = r.get("name", "")
+            parts = [r.get("admin1"), r.get("country")]
+            label += ", " + ", ".join(p for p in parts if p)
+            results.append({
+                "name": label,
+                "lat": round(r["latitude"], 4),
+                "lon": round(r["longitude"], 4),
+            })
+        return jsonify(results)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == "__main__":
     print("🪁 Kite Conditions — Web Dashboard")
     print("   http://localhost:5555")
