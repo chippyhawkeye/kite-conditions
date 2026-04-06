@@ -3,7 +3,7 @@ services:
     name: kite-conditions
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn kite_web:app --bind 0.0.0.0:$PORT --workers 2 --threads 2
+    startCommand: gunicorn kite_web:app --bind 0.0.0.0:$PORT --workers 3
     envVars:
       - key: PYTHON_VERSION
         value: "3.12"
