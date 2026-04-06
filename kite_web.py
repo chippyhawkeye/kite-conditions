@@ -354,4 +354,4 @@ if __name__ == "__main__":
     print("🪁 Kite Conditions — Web Dashboard")
     print("   http://localhost:5555")
     print("   Press Ctrl+C to quit\n")
-    app.run(debug=True, port=5555)
+    app.run(debug=True, port=5555, threaded=True)

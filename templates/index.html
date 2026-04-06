@@ -420,15 +420,15 @@
   <div class="container">
 
     <!-- ── Date Range Picker ─────────────── -->
-    <form class="date-picker" id="date-form" onsubmit="return submitDates(event)">
+    <div class="date-picker" id="date-picker">
       <label>From
         <input type="date" id="date-start" value="{{ start_date }}" min="{{ today }}" max="{{ max_end }}">
       </label>
       <label>To
         <input type="date" id="date-end" value="{{ end_date }}" min="{{ today }}" max="{{ max_end }}">
       </label>
-      <button type="submit">Update</button>
-    </form>
+      <button type="button" id="date-update-btn">Update</button>
+    </div>
 
     <!-- ── Overview Grid ─────────────────── -->
     {% if days_grid %}
@@ -593,14 +593,13 @@
     }
 
     // Date picker — navigate via JS to avoid Simple Browser form quirks
-    function submitDates(e) {
-      e.preventDefault();
+    document.getElementById('date-update-btn').addEventListener('click', function() {
       var s = document.getElementById('date-start').value;
       var ed = document.getElementById('date-end').value;
-      if (!s || !ed) return false;
-      window.location.href = '/?start=' + s + '&end=' + ed;
-      return false;
-    }
+      if (s && ed) {
+        window.location.href = '/?start=' + encodeURIComponent(s) + '&end=' + encodeURIComponent(ed);
+      }
+    });
 
     // Clicking a grid row scrolls to that spot's detail section
     document.querySelectorAll('.grid-table tbody tr').forEach(row => {
