@@ -184,10 +184,13 @@ def build_forecast_data():
             rating = kite_rating(max_wind)
 
             hours = []
+            daylight_winds = []
             for i in hour_indices:
                 if not hourly["is_day"][i]:
                     continue
                 wind = hourly["wind_speed_10m"][i]
+                if wind is not None:
+                    daylight_winds.append(wind)
                 hours.append({
                     "time": times[i][-5:],
                     "temp": round(hourly["temperature_2m"][i]) if hourly["temperature_2m"][i] is not None else None,
@@ -200,6 +203,8 @@ def build_forecast_data():
                     "rating": kite_rating(wind),
                 })
 
+            avg_wind = round(sum(daylight_winds) / len(daylight_winds)) if daylight_winds else None
+
             day_data = {
                 "date": date_str,
                 "day_name": dt.strftime("%A"),
@@ -210,6 +215,7 @@ def build_forecast_data():
                 "hi": round(hi) if hi is not None else None,
                 "lo": round(lo) if lo is not None else None,
                 "max_wind": round(max_wind) if max_wind is not None else None,
+                "avg_wind": avg_wind,
                 "max_gust": round(max_gust) if max_gust is not None else None,
                 "dom_dir": degrees_to_compass(dom_dir_deg),
                 "rating": rating,
@@ -270,6 +276,7 @@ def build_forecast_data():
                     "rating_label": "?",
                     "rating_emoji": "⚪",
                     "max_wind": None,
+                    "avg_wind": None,
                     "max_gust": None,
                     "dom_dir": "?",
                     "hi": None,
