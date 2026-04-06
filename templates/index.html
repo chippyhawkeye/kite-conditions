@@ -406,6 +406,29 @@
 
     .range-picker select:focus { outline: none; border-color: var(--accent); }
 
+    /* ── Nav ─────────────────────────────── */
+    nav {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      padding: 0.6rem 1rem;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+    }
+
+    nav a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.3rem 0;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+
+    nav a:hover { color: var(--text); }
+    nav a.active { color: var(--accent); border-bottom-color: var(--accent); }
+
     /* ── Responsive ────────────────────────── */
     @media (max-width: 640px) {
       header h1 { font-size: 1.4rem; }
@@ -426,6 +449,11 @@
     <h1>🪁 Kite Conditions</h1>
     <div class="subtitle">Generated {{ generated }}</div>
   </header>
+
+  <nav>
+    <a href="/" class="active">📊 Dashboard</a>
+    <a href="/settings">📍 Locations</a>
+  </nav>
 
   <div class="container">
 

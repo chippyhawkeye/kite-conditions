@@ -8,11 +8,12 @@ using Flask. Reuses the same Open-Meteo data pipeline as the CLI tool.
 
 import json
 import sys
+import uuid
 from datetime import datetime, date, timedelta
 from pathlib import Path
 
 import requests
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify, redirect, url_for
 
 # ── Configuration ────────────────────────────────────────────────────────────
 
@@ -111,10 +112,26 @@ def weather_icon(code):
 
 def load_spots():
     if not SPOTS_FILE.exists():
-        print(f"❌ Spots file not found: {SPOTS_FILE}")
-        sys.exit(1)
+        with open(SPOTS_FILE, "w") as f:
+            json.dump([], f)
+        return []
     with open(SPOTS_FILE) as f:
-        return json.load(f)
+        spots = json.load(f)
+    # Ensure every spot has an id
+    changed = False
+    for s in spots:
+        if "id" not in s:
+            s["id"] = str(uuid.uuid4())[:8]
+            changed = True
+    if changed:
+        save_spots(spots)
+    return spots
+
+
+def save_spots(spots):
+    with open(SPOTS_FILE, "w") as f:
+        json.dump(spots, f, indent=2)
+    return spots
 
 
 def fetch_forecast(lat, lon, start_date=None, end_date=None):
@@ -346,6 +363,72 @@ def index():
     forecast["today"] = today.isoformat()
     forecast["max_end"] = (today + timedelta(days=max_days_out - 1)).isoformat()
     return render_template("index.html", **forecast)
+
+
+# ── Location Editor ──────────────────────────────────────────────────────────
+
+@app.route("/settings")
+def settings():
+    spots = load_spots()
+    return render_template("settings.html", spots=spots)
+
+
+@app.route("/api/spots", methods=["GET"])
+def api_get_spots():
+    return jsonify(load_spots())
+
+
+@app.route("/api/spots", methods=["POST"])
+def api_add_spot():
+    data = request.get_json(force=True)
+    name = data.get("name", "").strip()
+    try:
+        lat = float(data.get("lat", 0))
+        lon = float(data.get("lon", 0))
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid lat/lon"}), 400
+    if not name:
+        return jsonify({"error": "Name is required"}), 400
+
+    spots = load_spots()
+    new_spot = {"id": str(uuid.uuid4())[:8], "name": name, "lat": lat, "lon": lon}
+    spots.append(new_spot)
+    save_spots(spots)
+    return jsonify(new_spot), 201
+
+
+@app.route("/api/spots/<spot_id>", methods=["PUT"])
+def api_update_spot(spot_id):
+    data = request.get_json(force=True)
+    spots = load_spots()
+    spot = next((s for s in spots if s["id"] == spot_id), None)
+    if not spot:
+        return jsonify({"error": "Spot not found"}), 404
+
+    name = data.get("name", "").strip()
+    if name:
+        spot["name"] = name
+    if "lat" in data:
+        try:
+            spot["lat"] = float(data["lat"])
+        except (ValueError, TypeError):
+            return jsonify({"error": "Invalid lat"}), 400
+    if "lon" in data:
+        try:
+            spot["lon"] = float(data["lon"])
+        except (ValueError, TypeError):
+            return jsonify({"error": "Invalid lon"}), 400
+
+    save_spots(spots)
+    return jsonify(spot)
+
+
+@app.route("/api/spots/<spot_id>", methods=["DELETE"])
+def api_delete_spot(spot_id):
+    spots = load_spots()
+    spots = [s for s in spots if s["id"] != spot_id]
+    save_spots(spots)
+    return jsonify({"ok": True})
 
 
 if __name__ == "__main__":

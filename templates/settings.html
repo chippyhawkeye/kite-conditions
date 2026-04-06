@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🪁 Kite Conditions — Locations</title>
+  <style>
+    :root {
+      --bg: #0f1923;
+      --card: #1a2733;
+      --card-hover: #1e2f3f;
+      --border: #2a3f52;
+      --text: #e4e8ec;
+      --text-muted: #8899a6;
+      --accent: #38bdf8;
+      --danger: #ef4444;
+      --danger-bg: rgba(239, 68, 68, 0.10);
+      --success: #22c55e;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(135deg, #0c2135 0%, #1a3550 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 1.5rem 1rem;
+      text-align: center;
+    }
+
+    header h1 { font-size: 1.8rem; font-weight: 700; letter-spacing: -0.02em; }
+    header .subtitle { color: var(--text-muted); font-size: 0.85rem; margin-top: 0.3rem; }
+
+    nav {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      padding: 0.6rem 1rem;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+    }
+
+    nav a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.3rem 0;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+
+    nav a:hover { color: var(--text); }
+    nav a.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem;
+    }
+
+    /* ── Spot List ──────────────────────── */
+    .spot-list { margin-bottom: 2rem; }
+
+    .spot-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.2rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      transition: background 0.15s;
+    }
+
+    .spot-card:hover { background: var(--card-hover); }
+
+    .spot-info { flex: 1; }
+    .spot-info .spot-name {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    .spot-info .spot-coords {
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      margin-top: 0.15rem;
+    }
+
+    .spot-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .btn {
+      border: none;
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    .btn:hover { opacity: 0.85; }
+    .btn-edit { background: var(--accent); color: #0f1923; }
+    .btn-delete { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger); }
+    .btn-add { background: var(--accent); color: #0f1923; font-size: 0.85rem; padding: 0.5rem 1.2rem; }
+    .btn-save { background: var(--success); color: #0f1923; }
+    .btn-cancel { background: var(--card); color: var(--text-muted); border: 1px solid var(--border); }
+
+    /* ── Form ───────────────────────────── */
+    .spot-form {
+      background: var(--card);
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      padding: 1.2rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .spot-form h3 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 0.8rem;
+      color: var(--accent);
+    }
+
+    .form-row {
+      display: flex;
+      gap: 0.8rem;
+      margin-bottom: 0.8rem;
+      flex-wrap: wrap;
+    }
+
+    .form-group {
+      flex: 1;
+      min-width: 150px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 0.3rem;
+    }
+
+    .form-group input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.45rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-family: inherit;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.3rem;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-muted);
+    }
+
+    .empty-state .emoji { font-size: 2.5rem; margin-bottom: 0.5rem; }
+    .empty-state p { font-size: 0.9rem; }
+
+    .toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      background: var(--card);
+      border: 1px solid var(--success);
+      color: var(--success);
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .toast.error {
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    @media (max-width: 640px) {
+      .spot-card { flex-direction: column; align-items: stretch; }
+      .spot-actions { justify-content: flex-end; }
+      .form-group { min-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🪁 Kite Conditions</h1>
+    <div class="subtitle">Location Manager</div>
+  </header>
+
+  <nav>
+    <a href="/">📊 Dashboard</a>
+    <a href="/settings" class="active">📍 Locations</a>
+  </nav>
+
+  <div class="container">
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+      <h2 style="font-size:1.1rem;">Tracking Locations</h2>
+      <button class="btn btn-add" onclick="showAddForm()">+ Add Location</button>
+    </div>
+
+    <!-- Add form (hidden by default) -->
+    <div id="add-form" style="display:none;">
+      <div class="spot-form">
+        <h3>Add New Location</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Location Name</label>
+            <input type="text" id="add-name" placeholder="e.g. Cape Hatteras, NC">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Latitude</label>
+            <input type="text" id="add-lat" placeholder="e.g. 35.2225">
+          </div>
+          <div class="form-group">
+            <label>Longitude</label>
+            <input type="text" id="add-lon" placeholder="e.g. -75.6350">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-save" onclick="addSpot()">Save Location</button>
+          <button class="btn btn-cancel" onclick="hideAddForm()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Spot list -->
+    <div id="spot-list" class="spot-list">
+      {% if spots %}
+        {% for spot in spots %}
+        <div class="spot-card" id="card-{{ spot.id }}" data-id="{{ spot.id }}">
+          <div class="spot-info">
+            <div class="spot-name">📍 {{ spot.name }}</div>
+            <div class="spot-coords">{{ spot.lat }}, {{ spot.lon }}</div>
+          </div>
+          <div class="spot-actions">
+            <button class="btn btn-edit" onclick="showEditForm('{{ spot.id }}', '{{ spot.name }}', {{ spot.lat }}, {{ spot.lon }})">Edit</button>
+            <button class="btn btn-delete" onclick="deleteSpot('{{ spot.id }}', '{{ spot.name }}')">Delete</button>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">
+          <div class="emoji">🗺️</div>
+          <p>No locations added yet. Click <strong>+ Add Location</strong> to get started.</p>
+        </div>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    function showToast(msg, isError) {
+      var t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = 'toast show' + (isError ? ' error' : '');
+      setTimeout(function() { t.className = 'toast'; }, 2500);
+    }
+
+    function showAddForm() {
+      document.getElementById('add-form').style.display = 'block';
+      document.getElementById('add-name').value = '';
+      document.getElementById('add-lat').value = '';
+      document.getElementById('add-lon').value = '';
+      document.getElementById('add-name').focus();
+    }
+
+    function hideAddForm() {
+      document.getElementById('add-form').style.display = 'none';
+    }
+
+    function addSpot() {
+      var name = document.getElementById('add-name').value.trim();
+      var lat = document.getElementById('add-lat').value.trim();
+      var lon = document.getElementById('add-lon').value.trim();
+
+      if (!name || !lat || !lon) {
+        showToast('Please fill in all fields', true);
+        return;
+      }
+
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/spots');
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.onload = function() {
+        if (xhr.status === 201) {
+          showToast('Location added!');
+          setTimeout(function() { window.location.reload(); }, 500);
+        } else {
+          var resp = JSON.parse(xhr.responseText);
+          showToast(resp.error || 'Failed to add', true);
+        }
+      };
+      xhr.onerror = function() { showToast('Network error', true); };
+      xhr.send(JSON.stringify({ name: name, lat: parseFloat(lat), lon: parseFloat(lon) }));
+    }
+
+    function showEditForm(id, name, lat, lon) {
+      // Remove any existing edit forms
+      var old = document.querySelector('.edit-form-inline');
+      if (old) old.remove();
+
+      var card = document.getElementById('card-' + id);
+      var form = document.createElement('div');
+      form.className = 'spot-form edit-form-inline';
+      form.innerHTML = '<h3>Edit Location</h3>' +
+        '<div class="form-row">' +
+          '<div class="form-group"><label>Location Name</label>' +
+            '<input type="text" id="edit-name-' + id + '" value="' + name + '"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+          '<div class="form-group"><label>Latitude</label>' +
+            '<input type="text" id="edit-lat-' + id + '" value="' + lat + '"></div>' +
+          '<div class="form-group"><label>Longitude</label>' +
+            '<input type="text" id="edit-lon-' + id + '" value="' + lon + '"></div>' +
+        '</div>' +
+        '<div class="form-actions">' +
+          '<button class="btn btn-save" onclick="saveEdit(\'' + id + '\')">Save</button>' +
+          '<button class="btn btn-cancel" onclick="cancelEdit()">Cancel</button>' +
+        '</div>';
+      card.parentNode.insertBefore(form, card);
+      card.style.display = 'none';
+    }
+
+    function cancelEdit() {
+      var form = document.querySelector('.edit-form-inline');
+      if (form) {
+        var next = form.nextElementSibling;
+        if (next) next.style.display = 'flex';
+        form.remove();
+      }
+    }
+
+    function saveEdit(id) {
+      var name = document.getElementById('edit-name-' + id).value.trim();
+      var lat = document.getElementById('edit-lat-' + id).value.trim();
+      var lon = document.getElementById('edit-lon-' + id).value.trim();
+
+      if (!name || !lat || !lon) {
+        showToast('Please fill in all fields', true);
+        return;
+      }
+
+      var xhr = new XMLHttpRequest();
+      xhr.open('PUT', '/api/spots/' + id);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          showToast('Location updated!');
+          setTimeout(function() { window.location.reload(); }, 500);
+        } else {
+          var resp = JSON.parse(xhr.responseText);
+          showToast(resp.error || 'Failed to update', true);
+        }
+      };
+      xhr.onerror = function() { showToast('Network error', true); };
+      xhr.send(JSON.stringify({ name: name, lat: parseFloat(lat), lon: parseFloat(lon) }));
+    }
+
+    function deleteSpot(id, name) {
+      if (!confirm('Delete "' + name + '"? This cannot be undone.')) return;
+
+      var xhr = new XMLHttpRequest();
+      xhr.open('DELETE', '/api/spots/' + id);
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          showToast('Location deleted');
+          var card = document.getElementById('card-' + id);
+          if (card) card.remove();
+          // Check if list is now empty
+          if (document.querySelectorAll('.spot-card').length === 0) {
+            setTimeout(function() { window.location.reload(); }, 300);
+          }
+        } else {
+          showToast('Failed to delete', true);
+        }
+      };
+      xhr.onerror = function() { showToast('Network error', true); };
+      xhr.send();
+    }
+  </script>
+
+</body>
+</html>

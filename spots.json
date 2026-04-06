@@ -2,36 +2,43 @@
   {
     "name": "Cape Hatteras, NC",
     "lat": 35.2225,
-    "lon": -75.6350
+    "lon": -75.635,
+    "id": "1fed4054"
   },
   {
     "name": "Outer Banks - Rodanthe, NC",
     "lat": 35.5935,
-    "lon": -75.4638
+    "lon": -75.4638,
+    "id": "9e0775a8"
   },
   {
     "name": "Cocoa Beach, FL",
-    "lat": 28.3200,
-    "lon": -80.6076
+    "lat": 28.32,
+    "lon": -80.6076,
+    "id": "efe5e417"
   },
   {
     "name": "Key West, FL",
     "lat": 24.5551,
-    "lon": -81.7800
+    "lon": -81.78,
+    "id": "fc6a762e"
   },
   {
     "name": "Grand Cayman, Cayman Islands",
     "lat": 19.3133,
-    "lon": -81.2546
+    "lon": -81.2546,
+    "id": "84f34fe3"
   },
   {
     "name": "Providenciales, Turks & Caicos",
     "lat": 21.7735,
-    "lon": -72.2686
+    "lon": -72.2686,
+    "id": "5eecbbad"
   },
   {
     "name": "Dauphin Island, AL",
     "lat": 30.2552,
-    "lon": -88.1100
+    "lon": -88.11,
+    "id": "c0cf3b3d"
   }
 ]
