@@ -164,6 +164,14 @@
     .gc-rating.maybe { background: var(--maybe-bg); color: var(--maybe); }
     .gc-rating.nope { background: var(--nope-bg); color: var(--nope); opacity: 0.5; }
 
+    .gc-gust { font-size: 0.68rem; line-height: 1.3; font-weight: 600; }
+    .gc-gust.gust-low { color: var(--send-it); }
+    .gc-gust.gust-med { color: var(--maybe); }
+    .gc-gust.gust-high { color: var(--nope); }
+
+    .gc-temp { font-size: 0.65rem; color: var(--text-muted); line-height: 1.3; }
+    .gc-temp span { font-weight: 600; color: var(--text); }
+
     /* Hourly wind dots timeline */
     .hour-dots {
       display: flex;
@@ -468,6 +476,8 @@
       .grid-cell { min-width: 72px; }
       .grid-cell .gc-wind { font-size: 0.9rem; }
       .grid-cell .gc-detail { font-size: 0.62rem; }
+      .grid-cell .gc-gust { font-size: 0.62rem; }
+      .grid-cell .gc-temp { font-size: 0.58rem; }
       .hour-dot { width: 4px; height: 4px; }
     }
   </style>
@@ -537,8 +547,9 @@
                   {% set s = match.found %}
                   <td class="grid-cell">
                     <div class="gc-wind">{{ s.avg_wind or s.max_wind or '–' }}</div>
-                    <div class="gc-detail">{{ s.dom_dir }} · {{ s.lo or '–' }}°–{{ s.hi or '–' }}°</div>
-                    <div class="gc-detail">gusts {{ s.max_gust or '–' }}{% if s.gust_factor %} · GF {{ s.gust_factor }}×{% endif %}</div>
+                    <div class="gc-detail">{{ s.dom_dir }}</div>
+                    <div class="gc-gust {% if s.gust_pct is not none %}{% if s.gust_pct < 25 %}gust-low{% elif s.gust_pct <= 50 %}gust-med{% else %}gust-high{% endif %}{% endif %}">gusts {{ s.max_gust or '–' }}{% if s.gust_pct is not none %} (+{{ s.gust_pct }}%){% endif %}</div>
+                    <div class="gc-temp">🌡 {{ s.lo or '–' }}° / <span>{{ s.avg_temp or '–' }}°</span> / {{ s.hi or '–' }}°</div>
                     <span class="gc-rating {{ s.rating }}">{{ s.rating_emoji }} {{ s.rating_label }}</span>
                     {% if s.hours %}
                     <div class="hour-dots">

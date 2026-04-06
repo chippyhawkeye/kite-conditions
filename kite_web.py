@@ -242,15 +242,19 @@ def build_forecast_data(start_date=None, end_date=None):
             hours = []
             daylight_winds = []
             daylight_gusts = []
+            daylight_temps = []
             for i in hour_indices:
                 if not hourly["is_day"][i]:
                     continue
                 wind = hourly["wind_speed_10m"][i]
                 gust = hourly["wind_gusts_10m"][i]
+                temp = hourly["temperature_2m"][i]
                 if wind is not None:
                     daylight_winds.append(wind)
                 if gust is not None:
                     daylight_gusts.append(gust)
+                if temp is not None:
+                    daylight_temps.append(temp)
                 hours.append({
                     "time": times[i][-5:],
                     "temp": round(hourly["temperature_2m"][i]) if hourly["temperature_2m"][i] is not None else None,
@@ -264,12 +268,15 @@ def build_forecast_data(start_date=None, end_date=None):
                 })
 
             avg_wind = round(sum(daylight_winds) / len(daylight_winds)) if daylight_winds else None
+            avg_temp = round(sum(daylight_temps) / len(daylight_temps)) if daylight_temps else None
 
             # Daily rating: based on hourly consistency + gust factor
             day_rating = day_kite_rating(daylight_winds, daylight_gusts)
             gust_factor = None
+            gust_pct = None  # percentage above base wind
             if avg_wind and daylight_gusts:
                 gust_factor = round(max(daylight_gusts) / (sum(daylight_winds) / len(daylight_winds)), 1)
+                gust_pct = round((gust_factor - 1) * 100)
 
             day_data = {
                 "date": date_str,
@@ -280,10 +287,12 @@ def build_forecast_data(start_date=None, end_date=None):
                 "sunset": sunset,
                 "hi": round(hi) if hi is not None else None,
                 "lo": round(lo) if lo is not None else None,
+                "avg_temp": avg_temp,
                 "max_wind": round(max_wind) if max_wind is not None else None,
                 "avg_wind": avg_wind,
                 "max_gust": round(max_gust) if max_gust is not None else None,
                 "gust_factor": gust_factor,
+                "gust_pct": gust_pct,
                 "dom_dir": degrees_to_compass(dom_dir_deg),
                 "rating": day_rating,
                 "rating_label": rating_label(day_rating),
