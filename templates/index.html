@@ -164,6 +164,34 @@
     .gc-rating.maybe { background: var(--maybe-bg); color: var(--maybe); }
     .gc-rating.nope { background: var(--nope-bg); color: var(--nope); opacity: 0.5; }
 
+    /* Hourly wind dots timeline */
+    .hour-dots {
+      display: flex;
+      gap: 1px;
+      margin-top: 4px;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .hour-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      position: relative;
+      cursor: default;
+    }
+
+    .hour-dot.send-it { background: var(--send-it); }
+    .hour-dot.maybe { background: var(--maybe); }
+    .hour-dot.nope { background: var(--nope); opacity: 0.45; }
+    .hour-dot.unknown { background: var(--text-muted); opacity: 0.3; }
+
+    .hour-dot[title]:hover {
+      transform: scale(2);
+      z-index: 2;
+    }
+
     /* ── Spot Sections ─────────────────────── */
     .spot-section {
       margin-bottom: 2.5rem;
@@ -440,6 +468,7 @@
       .grid-cell { min-width: 72px; }
       .grid-cell .gc-wind { font-size: 0.9rem; }
       .grid-cell .gc-detail { font-size: 0.62rem; }
+      .hour-dot { width: 4px; height: 4px; }
     }
   </style>
 </head>
@@ -511,6 +540,13 @@
                     <div class="gc-detail">{{ s.dom_dir }} · {{ s.lo or '–' }}°–{{ s.hi or '–' }}°</div>
                     <div class="gc-detail">gusts {{ s.max_gust or '–' }}</div>
                     <span class="gc-rating {{ s.rating }}">{{ s.rating_emoji }} {{ s.rating_label }}</span>
+                    {% if s.hours %}
+                    <div class="hour-dots">
+                      {% for h in s.hours %}
+                      <span class="hour-dot {{ h.rating }}" title="{{ h.time }} — {{ h.wind or '?' }} mph"></span>
+                      {% endfor %}
+                    </div>
+                    {% endif %}
                   </td>
                 {% else %}
                   <td class="grid-cell"><span style="color:var(--text-muted)">–</span></td>
