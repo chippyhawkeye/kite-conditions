@@ -59,10 +59,11 @@ WIND_IDEAL_MAX = 30
 WIND_MARGINAL_MIN = 12
 WIND_MARGINAL_MAX = 35
 
-# In-memory cache: key = (lat, lon, start, end) -> (timestamp, data)
+# In-memory cache: key = (lat, lon) -> (timestamp, data)
+# Always fetches full 16-day forecast; date range sliced in build_forecast_data
 _forecast_cache = {}
 _cache_lock = Lock()
-CACHE_TTL = 300  # 5 minutes
+CACHE_TTL = 900  # 15 minutes
 
 WMO_CODES = {
     0: "Clear", 1: "Mostly Clear", 2: "Partly Cloudy", 3: "Overcast",
@@ -189,14 +190,20 @@ def save_spots(spots):
     return spots
 
 
-def fetch_forecast(lat, lon, start_date=None, end_date=None):
-    # Check cache first
-    cache_key = (lat, lon, start_date, end_date)
+def fetch_forecast(lat, lon):
+    """Fetch the full 16-day forecast for a location, using cache.
+
+    Returns (data, cache_age_seconds).  cache_age_seconds == 0 means fresh fetch.
+    """
+    cache_key = (round(lat, 4), round(lon, 4))
+    now = time.time()
+
     with _cache_lock:
         if cache_key in _forecast_cache:
             ts, data = _forecast_cache[cache_key]
-            if time.time() - ts < CACHE_TTL:
-                return data
+            age = now - ts
+            if age < CACHE_TTL:
+                return data, age
 
     params = {
         "latitude": lat,
@@ -206,34 +213,29 @@ def fetch_forecast(lat, lon, start_date=None, end_date=None):
         "temperature_unit": "fahrenheit",
         "wind_speed_unit": "mph",
         "timezone": "auto",
+        "forecast_days": 16,
     }
-    if start_date and end_date:
-        params["start_date"] = start_date
-        params["end_date"] = end_date
-    else:
-        params["forecast_days"] = 7
     resp = requests.get(OPEN_METEO_URL, params=params, timeout=15)
     resp.raise_for_status()
     data = resp.json()
 
-    # Store in cache
     with _cache_lock:
         _forecast_cache[cache_key] = (time.time(), data)
-        # Evict stale entries periodically
+        # Evict stale entries
         stale = [k for k, (ts, _) in _forecast_cache.items() if time.time() - ts > CACHE_TTL * 2]
         for k in stale:
             del _forecast_cache[k]
 
-    return data
+    return data, 0
 
 
-def _fetch_spot(spot, start_date, end_date):
-    """Fetch forecast for one spot. Returns (spot, data) or (spot, error)."""
+def _fetch_spot(spot):
+    """Fetch full forecast for one spot. Returns (spot, data, error, cache_age)."""
     try:
-        data = fetch_forecast(spot["lat"], spot["lon"], start_date, end_date)
-        return (spot, data, None)
+        data, cache_age = fetch_forecast(spot["lat"], spot["lon"])
+        return (spot, data, None, cache_age)
     except Exception as e:
-        return (spot, None, str(e))
+        return (spot, None, str(e), None)
 
 
 # ── Data Processing ──────────────────────────────────────────────────────────
@@ -246,19 +248,40 @@ def build_forecast_data(start_date=None, end_date=None):
     all_spots = []
     best_days = []
 
-    # Fetch all spots in parallel
+    # Parse requested date range for filtering
+    req_dates = set()
+    if start_date and end_date:
+        d = datetime.strptime(start_date, "%Y-%m-%d").date()
+        end_d = datetime.strptime(end_date, "%Y-%m-%d").date()
+        while d <= end_d:
+            req_dates.add(d.isoformat())
+            d += timedelta(days=1)
+
+    # Fetch all spots in parallel (full 16-day forecast, cached)
     results = []
+    cache_ages = []
     if spots:
         with ThreadPoolExecutor(max_workers=min(len(spots), 10)) as executor:
-            futures = {executor.submit(_fetch_spot, spot, start_date, end_date): spot for spot in spots}
+            futures = {executor.submit(_fetch_spot, spot): spot for spot in spots}
             for future in as_completed(futures):
-                results.append(future.result())
+                result = future.result()
+                results.append(result)
+                if result[3] is not None:
+                    cache_ages.append(result[3])
 
     # Preserve original spot order
     spot_order = {s["name"]: i for i, s in enumerate(spots)}
     results.sort(key=lambda r: spot_order.get(r[0]["name"], 999))
 
-    for spot, data, error in results:
+    # Determine cache freshness for UI display
+    if cache_ages:
+        max_cache_age = max(cache_ages)
+        all_cached = all(a > 0 for a in cache_ages)
+    else:
+        max_cache_age = 0
+        all_cached = False
+
+    for spot, data, error, _age in results:
         if error:
             all_spots.append({
                 "name": spot["name"],
@@ -274,25 +297,36 @@ def build_forecast_data(start_date=None, end_date=None):
         daily = data["daily"]
         times = hourly["time"]
 
-        # Group hours by date
+        # Group hours by date, filtering to requested range
         days_map = {}
         for i, t in enumerate(times):
             date_str = t[:10]
+            if req_dates and date_str not in req_dates:
+                continue
             if date_str not in days_map:
                 days_map[date_str] = []
             days_map[date_str].append(i)
 
+        # Build a lookup from date string to daily array index
+        daily_dates = daily.get("time", [])
+        daily_idx_map = {d: i for i, d in enumerate(daily_dates)}
+
         spot_days = []
-        for day_idx, (date_str, hour_indices) in enumerate(days_map.items()):
+        for date_str, hour_indices in days_map.items():
+            day_idx = daily_idx_map.get(date_str)
             dt = datetime.strptime(date_str, "%Y-%m-%d")
 
-            sunrise = daily["sunrise"][day_idx][-5:] if day_idx < len(daily["sunrise"]) else "?"
-            sunset = daily["sunset"][day_idx][-5:] if day_idx < len(daily["sunset"]) else "?"
-            hi = daily["temperature_2m_max"][day_idx] if day_idx < len(daily["temperature_2m_max"]) else None
-            lo = daily["temperature_2m_min"][day_idx] if day_idx < len(daily["temperature_2m_min"]) else None
-            max_wind = daily["wind_speed_10m_max"][day_idx] if day_idx < len(daily["wind_speed_10m_max"]) else None
-            max_gust = daily["wind_gusts_10m_max"][day_idx] if day_idx < len(daily["wind_gusts_10m_max"]) else None
-            dom_dir_deg = daily["wind_direction_10m_dominant"][day_idx] if day_idx < len(daily["wind_direction_10m_dominant"]) else None
+            if day_idx is not None:
+                sunrise = daily["sunrise"][day_idx][-5:] if day_idx < len(daily["sunrise"]) else "?"
+                sunset = daily["sunset"][day_idx][-5:] if day_idx < len(daily["sunset"]) else "?"
+                hi = daily["temperature_2m_max"][day_idx] if day_idx < len(daily["temperature_2m_max"]) else None
+                lo = daily["temperature_2m_min"][day_idx] if day_idx < len(daily["temperature_2m_min"]) else None
+                max_wind = daily["wind_speed_10m_max"][day_idx] if day_idx < len(daily["wind_speed_10m_max"]) else None
+                max_gust = daily["wind_gusts_10m_max"][day_idx] if day_idx < len(daily["wind_gusts_10m_max"]) else None
+                dom_dir_deg = daily["wind_direction_10m_dominant"][day_idx] if day_idx < len(daily["wind_direction_10m_dominant"]) else None
+            else:
+                sunrise = sunset = "?"
+                hi = lo = max_wind = max_gust = dom_dir_deg = None
 
             hours = []
             daylight_winds = []
@@ -438,6 +472,8 @@ def build_forecast_data(start_date=None, end_date=None):
         "spots": all_spots,
         "best_days": best_days,
         "days_grid": days_grid,
+        "cache_age": round(max_cache_age),
+        "all_cached": all_cached,
     }
 
 
