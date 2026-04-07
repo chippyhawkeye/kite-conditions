@@ -215,8 +215,22 @@ def fetch_forecast(lat, lon):
         "timezone": "auto",
         "forecast_days": 16,
     }
-    resp = requests.get(OPEN_METEO_URL, params=params, timeout=15)
-    resp.raise_for_status()
+
+    # Retry with exponential backoff (3 attempts: 0s, 2s, 4s)
+    last_err = None
+    for attempt in range(3):
+        try:
+            if attempt > 0:
+                time.sleep(2 ** attempt)  # 2s, 4s
+            resp = requests.get(OPEN_METEO_URL, params=params, timeout=30)
+            resp.raise_for_status()
+            break
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+            last_err = e
+            continue
+    else:
+        raise last_err  # all retries exhausted
+
     data = resp.json()
 
     with _cache_lock:
@@ -229,9 +243,11 @@ def fetch_forecast(lat, lon):
     return data, 0
 
 
-def _fetch_spot(spot):
+def _fetch_spot(spot, stagger=0):
     """Fetch full forecast for one spot. Returns (spot, data, error, cache_age)."""
     try:
+        if stagger > 0:
+            time.sleep(stagger)
         data, cache_age = fetch_forecast(spot["lat"], spot["lon"])
         return (spot, data, None, cache_age)
     except Exception as e:
@@ -261,8 +277,8 @@ def build_forecast_data(start_date=None, end_date=None):
     results = []
     cache_ages = []
     if spots:
-        with ThreadPoolExecutor(max_workers=min(len(spots), 10)) as executor:
-            futures = {executor.submit(_fetch_spot, spot): spot for spot in spots}
+        with ThreadPoolExecutor(max_workers=min(len(spots), 4)) as executor:
+            futures = {executor.submit(_fetch_spot, spot, i * 0.3): spot for i, spot in enumerate(spots)}
             for future in as_completed(futures):
                 result = future.result()
                 results.append(result)
@@ -590,7 +606,7 @@ def api_geocode():
         resp = requests.get(
             "https://geocoding-api.open-meteo.com/v1/search",
             params={"name": q, "count": 5, "language": "en", "format": "json"},
-            timeout=10,
+            timeout=20,
         )
         resp.raise_for_status()
         data = resp.json()
