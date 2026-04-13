@@ -300,6 +300,7 @@ def build_forecast_data(start_date=None, end_date=None):
     for spot, data, error, _age in results:
         if error:
             all_spots.append({
+                "id": spot.get("id", ""),
                 "name": spot["name"],
                 "lat": spot["lat"],
                 "lon": spot["lon"],
@@ -419,6 +420,7 @@ def build_forecast_data(start_date=None, end_date=None):
                 })
 
         all_spots.append({
+            "id": spot.get("id", ""),
             "name": spot["name"],
             "lat": spot["lat"],
             "lon": spot["lon"],
@@ -449,6 +451,7 @@ def build_forecast_data(start_date=None, end_date=None):
             match = next((d for d in s["days"] if d["date"] == date_str), None)
             if match:
                 day_spots.append({
+                    "id": s.get("id", ""),
                     "name": s["name"],
                     "lat": s["lat"],
                     "lon": s["lon"],
@@ -456,6 +459,7 @@ def build_forecast_data(start_date=None, end_date=None):
                 })
             else:
                 day_spots.append({
+                    "id": s.get("id", ""),
                     "name": s["name"],
                     "lat": s["lat"],
                     "lon": s["lon"],
@@ -528,6 +532,190 @@ def index():
     forecast["today"] = today.isoformat()
     forecast["max_end"] = (today + timedelta(days=max_days_out - 1)).isoformat()
     return render_template("index.html", **forecast)
+
+
+@app.route("/spot/<spot_id>")
+def spot_detail(spot_id):
+    """Detail page for a single spot with current conditions + day-by-day forecast."""
+    spots = load_spots()
+    spot = next((s for s in spots if s["id"] == spot_id), None)
+    if not spot:
+        return redirect(url_for("index"))
+
+    today = date.today()
+    max_days_out = 16
+
+    try:
+        offset = int(request.args.get("offset", 0))
+    except (ValueError, TypeError):
+        offset = 0
+    try:
+        num_days = int(request.args.get("days", 7))
+    except (ValueError, TypeError):
+        num_days = 7
+
+    offset = max(0, min(offset, max_days_out - 1))
+    num_days = max(1, min(num_days, max_days_out - offset))
+
+    start_date = today + timedelta(days=offset)
+    end_date = start_date + timedelta(days=num_days - 1)
+
+    # Fetch forecast for this single spot (uses cache)
+    try:
+        raw_data, cache_age = fetch_forecast(spot["lat"], spot["lon"])
+        error = None
+    except Exception as e:
+        raw_data = None
+        cache_age = 0
+        error = str(e)
+
+    # Process into the same structure as build_forecast_data for one spot
+    spot_data = {
+        "name": spot["name"],
+        "lat": spot["lat"],
+        "lon": spot["lon"],
+        "id": spot["id"],
+        "error": error,
+        "days": [],
+        "timezone": "",
+    }
+
+    # Current conditions placeholder
+    current = None
+
+    if raw_data and not error:
+        tz = raw_data.get("timezone", "UTC")
+        spot_data["timezone"] = tz
+        hourly = raw_data["hourly"]
+        daily = raw_data["daily"]
+        times = hourly["time"]
+
+        # Build requested date set
+        req_dates = set()
+        d = start_date
+        while d <= end_date:
+            req_dates.add(d.isoformat())
+            d += timedelta(days=1)
+
+        # Find "now" hour for current conditions (today, closest past hour)
+        now_str = datetime.now().strftime("%Y-%m-%dT%H:00")
+        current_idx = None
+        for i, t in enumerate(times):
+            if t <= now_str:
+                current_idx = i
+        if current_idx is not None:
+            current = {
+                "time": times[current_idx][-5:],
+                "temp": round(hourly["temperature_2m"][current_idx]) if hourly["temperature_2m"][current_idx] is not None else None,
+                "feels": round(hourly["apparent_temperature"][current_idx]) if hourly["apparent_temperature"][current_idx] is not None else None,
+                "wind": round(hourly["wind_speed_10m"][current_idx]) if hourly["wind_speed_10m"][current_idx] is not None else None,
+                "gust": round(hourly["wind_gusts_10m"][current_idx]) if hourly["wind_gusts_10m"][current_idx] is not None else None,
+                "dir": degrees_to_compass(hourly["wind_direction_10m"][current_idx]),
+                "sky": weather_desc(hourly["weather_code"][current_idx]),
+                "sky_icon": weather_icon(hourly["weather_code"][current_idx]),
+                "rating": kite_rating(hourly["wind_speed_10m"][current_idx]),
+                "is_day": hourly["is_day"][current_idx],
+            }
+
+        # Group hours by date, filter to requested range
+        days_map = {}
+        for i, t in enumerate(times):
+            date_str = t[:10]
+            if date_str not in req_dates:
+                continue
+            if date_str not in days_map:
+                days_map[date_str] = []
+            days_map[date_str].append(i)
+
+        daily_dates = daily.get("time", [])
+        daily_idx_map = {d: i for i, d in enumerate(daily_dates)}
+
+        for date_str, hour_indices in days_map.items():
+            day_idx = daily_idx_map.get(date_str)
+            dt = datetime.strptime(date_str, "%Y-%m-%d")
+
+            if day_idx is not None:
+                sunrise = daily["sunrise"][day_idx][-5:] if day_idx < len(daily["sunrise"]) else "?"
+                sunset = daily["sunset"][day_idx][-5:] if day_idx < len(daily["sunset"]) else "?"
+                hi = daily["temperature_2m_max"][day_idx] if day_idx < len(daily["temperature_2m_max"]) else None
+                lo = daily["temperature_2m_min"][day_idx] if day_idx < len(daily["temperature_2m_min"]) else None
+                max_wind = daily["wind_speed_10m_max"][day_idx] if day_idx < len(daily["wind_speed_10m_max"]) else None
+                max_gust = daily["wind_gusts_10m_max"][day_idx] if day_idx < len(daily["wind_gusts_10m_max"]) else None
+                dom_dir_deg = daily["wind_direction_10m_dominant"][day_idx] if day_idx < len(daily["wind_direction_10m_dominant"]) else None
+            else:
+                sunrise = sunset = "?"
+                hi = lo = max_wind = max_gust = dom_dir_deg = None
+
+            hours = []
+            daylight_winds = []
+            daylight_gusts = []
+            daylight_temps = []
+            for i in hour_indices:
+                if not hourly["is_day"][i]:
+                    continue
+                wind = hourly["wind_speed_10m"][i]
+                gust = hourly["wind_gusts_10m"][i]
+                temp = hourly["temperature_2m"][i]
+                if wind is not None:
+                    daylight_winds.append(wind)
+                if gust is not None:
+                    daylight_gusts.append(gust)
+                if temp is not None:
+                    daylight_temps.append(temp)
+                hours.append({
+                    "time": times[i][-5:],
+                    "temp": round(temp) if temp is not None else None,
+                    "feels": round(hourly["apparent_temperature"][i]) if hourly["apparent_temperature"][i] is not None else None,
+                    "wind": round(wind) if wind is not None else None,
+                    "gust": round(gust) if gust is not None else None,
+                    "dir": degrees_to_compass(hourly["wind_direction_10m"][i]),
+                    "sky": weather_desc(hourly["weather_code"][i]),
+                    "sky_icon": weather_icon(hourly["weather_code"][i]),
+                    "rating": kite_rating(wind),
+                })
+
+            avg_wind = round(sum(daylight_winds) / len(daylight_winds)) if daylight_winds else None
+            avg_temp = round(sum(daylight_temps) / len(daylight_temps)) if daylight_temps else None
+            day_rating = day_kite_rating(daylight_winds, daylight_gusts)
+            gust_factor = None
+            gust_pct = None
+            if avg_wind and daylight_gusts:
+                gust_factor = round(max(daylight_gusts) / (sum(daylight_winds) / len(daylight_winds)), 1)
+                gust_pct = round((gust_factor - 1) * 100)
+
+            spot_data["days"].append({
+                "date": date_str,
+                "day_name": dt.strftime("%A"),
+                "day_short": dt.strftime("%a"),
+                "month_day": dt.strftime("%b %d"),
+                "sunrise": sunrise,
+                "sunset": sunset,
+                "hi": round(hi) if hi is not None else None,
+                "lo": round(lo) if lo is not None else None,
+                "avg_temp": avg_temp,
+                "max_wind": round(max_wind) if max_wind is not None else None,
+                "avg_wind": avg_wind,
+                "max_gust": round(max_gust) if max_gust is not None else None,
+                "gust_factor": gust_factor,
+                "gust_pct": gust_pct,
+                "dom_dir": degrees_to_compass(dom_dir_deg),
+                "rating": day_rating,
+                "rating_label": rating_label(day_rating),
+                "rating_emoji": rating_emoji(day_rating),
+                "hours": hours,
+            })
+
+    generated = datetime.now().strftime("%A, %B %d %Y at %I:%M %p")
+
+    return render_template("spot.html",
+        spot=spot_data,
+        current=current,
+        generated=generated,
+        cache_age=round(cache_age),
+        all_cached=cache_age > 0,
+        num_days=num_days,
+        start_offset=offset,
+    )
 
 
 # ── Location Editor ──────────────────────────────────────────────────────────
