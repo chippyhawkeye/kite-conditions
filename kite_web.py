@@ -580,6 +580,7 @@ def spot_detail(spot_id):
         "timezone": "",
         "webcam": spot.get("webcam", ""),
         "webcam_source": spot.get("webcam_source", ""),
+        "webcam_label": spot.get("webcam_label", ""),
     }
 
     # Current conditions placeholder

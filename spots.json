@@ -23,7 +23,8 @@
     "lon": -81.78,
     "id": "fc6a762e",
     "webcam": "https://relay.ozolio.com/pub.api?cmd=embed&oid=EMB_CSDO000005A2",
-    "webcam_source": "https://keywestharborside.com/"
+    "webcam_source": "https://keywestharborside.com/",
+    "webcam_label": "Harborside Motel & Marina — Garrison Bight"
   },
   {
     "name": "Grand Cayman, Cayman Islands",

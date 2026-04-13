@@ -214,19 +214,78 @@
       gap: 0.4rem;
     }
 
-    .webcam-card .webcam-wrap {
-      position: relative;
-      width: 100%;
-      padding-bottom: 56.25%; /* 16:9 aspect ratio */
+    .webcam-link {
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+      padding: 1rem 1.2rem;
+      text-decoration: none;
+      color: var(--text);
+      transition: background 0.15s;
     }
 
-    .webcam-card .webcam-wrap iframe {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      border: 0;
+    .webcam-link:hover {
+      background: rgba(255,255,255,0.04);
+    }
+
+    .webcam-play {
+      flex-shrink: 0;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      color: #0f1923;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .webcam-link:hover .webcam-play {
+      transform: scale(1.08);
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.35);
+    }
+
+    .webcam-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .webcam-info .webcam-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+
+    .webcam-info .webcam-subtitle {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 0.15rem;
+    }
+
+    .webcam-badge {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--send-it);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .webcam-badge .live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--send-it);
+      animation: pulse-dot 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
     }
 
     /* ── Range Picker ─────────────────────── */
@@ -511,22 +570,20 @@
       {% endif %}
     </div>
 
-    {% if spot.webcam %}
+    {% if spot.webcam_source %}
     <!-- ── Live Webcam ──────────────────── -->
     <div class="webcam-card">
-      <div class="webcam-header">
-        📹 Live Webcam
-        {% if spot.webcam_source %}
-          <a href="{{ spot.webcam_source }}" target="_blank" rel="noopener" style="margin-left:auto;font-size:0.75rem;font-weight:400;color:var(--accent);text-decoration:none;">Open full cam ↗</a>
-        {% endif %}
-      </div>
-      <div class="webcam-wrap">
-        <iframe src="{{ spot.webcam }}"
-                allowfullscreen
-                allow="autoplay; encrypted-media"
-                referrerpolicy="no-referrer-when-downgrade"
-                loading="lazy"></iframe>
-      </div>
+      <div class="webcam-header">📹 Live Webcam</div>
+      <a href="{{ spot.webcam_source }}" target="_blank" rel="noopener" class="webcam-link">
+        <div class="webcam-play">▶</div>
+        <div class="webcam-info">
+          <div class="webcam-title">{{ spot.webcam_label or spot.name }}</div>
+          <div class="webcam-subtitle">Opens live stream in new tab</div>
+        </div>
+        <div class="webcam-badge">
+          <span class="live-dot"></span> LIVE
+        </div>
+      </a>
     </div>
     {% endif %}
 
