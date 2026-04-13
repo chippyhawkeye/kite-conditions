@@ -195,6 +195,40 @@
       font-style: italic;
     }
 
+    /* ── Webcam ───────────────────────────── */
+    .webcam-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+    }
+
+    .webcam-card .webcam-header {
+      padding: 0.8rem 1.2rem;
+      font-size: 0.85rem;
+      font-weight: 700;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .webcam-card .webcam-wrap {
+      position: relative;
+      width: 100%;
+      padding-bottom: 56.25%; /* 16:9 aspect ratio */
+    }
+
+    .webcam-card .webcam-wrap iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+
     /* ── Range Picker ─────────────────────── */
     .range-picker {
       display: flex;
@@ -476,6 +510,16 @@
         <p class="no-current">Current conditions unavailable</p>
       {% endif %}
     </div>
+
+    {% if spot.webcam %}
+    <!-- ── Live Webcam ──────────────────── -->
+    <div class="webcam-card">
+      <div class="webcam-header">📹 Live Webcam</div>
+      <div class="webcam-wrap">
+        <iframe src="{{ spot.webcam }}" allowfullscreen loading="lazy"></iframe>
+      </div>
+    </div>
+    {% endif %}
 
     <!-- ── Range Picker ─────────────────── -->
     <div class="range-picker">

@@ -21,7 +21,8 @@
     "name": "Key West, FL",
     "lat": 24.5551,
     "lon": -81.78,
-    "id": "fc6a762e"
+    "id": "fc6a762e",
+    "webcam": "https://relay.ozolio.com/pub.api?cmd=embed&oid=EMB_CSDO000005A2"
   },
   {
     "name": "Grand Cayman, Cayman Islands",
