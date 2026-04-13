@@ -514,9 +514,18 @@
     {% if spot.webcam %}
     <!-- ── Live Webcam ──────────────────── -->
     <div class="webcam-card">
-      <div class="webcam-header">📹 Live Webcam</div>
+      <div class="webcam-header">
+        📹 Live Webcam
+        {% if spot.webcam_source %}
+          <a href="{{ spot.webcam_source }}" target="_blank" rel="noopener" style="margin-left:auto;font-size:0.75rem;font-weight:400;color:var(--accent);text-decoration:none;">Open full cam ↗</a>
+        {% endif %}
+      </div>
       <div class="webcam-wrap">
-        <iframe src="{{ spot.webcam }}" allowfullscreen loading="lazy"></iframe>
+        <iframe src="{{ spot.webcam }}"
+                allowfullscreen
+                allow="autoplay; encrypted-media"
+                referrerpolicy="no-referrer-when-downgrade"
+                loading="lazy"></iframe>
       </div>
     </div>
     {% endif %}

@@ -22,7 +22,8 @@
     "lat": 24.5551,
     "lon": -81.78,
     "id": "fc6a762e",
-    "webcam": "https://relay.ozolio.com/pub.api?cmd=embed&oid=EMB_CSDO000005A2"
+    "webcam": "https://relay.ozolio.com/pub.api?cmd=embed&oid=EMB_CSDO000005A2",
+    "webcam_source": "https://keywestharborside.com/"
   },
   {
     "name": "Grand Cayman, Cayman Islands",
