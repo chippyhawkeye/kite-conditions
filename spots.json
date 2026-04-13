@@ -12,21 +12,30 @@
     "id": "9e0775a8"
   },
   {
-    "name": "Cocoa Beach, FL",
-    "lat": 28.32,
-    "lon": -80.6076,
-    "id": "efe5e417"
-  },
-  {
     "name": "Key West, FL",
     "lat": 24.5551,
     "lon": -81.78,
     "id": "fc6a762e",
     "webcams": [
       {
-        "label": "Harborside Marina — Garrison Bight",
+        "label": "Harborside Marina \u2014 Garrison Bight",
         "image": "https://relay.ozolio.com/pub.api?cmd=image&oid=EMB_CSDO000005A2",
         "stream": "https://keywestharborside.com/"
+      },
+      {
+        "label": "Mallory Square",
+        "image": "https://relay.ozolio.com/pub.api?cmd=image&oid=EMB_CUVK000007A5",
+        "stream": "https://www.oceankey.com/key-west-webcam/"
+      },
+      {
+        "label": "Sunset Pier",
+        "image": "https://relay.ozolio.com/pub.api?cmd=image&oid=EMB_LKOU000004E4",
+        "stream": "https://www.oceankey.com/key-west-webcam/"
+      },
+      {
+        "label": "Sunset Cam",
+        "image": "https://relay.ozolio.com/pub.api?cmd=image&oid=EMB_RKNO000004F8",
+        "stream": "https://www.oceankey.com/key-west-webcam/"
       }
     ]
   },
