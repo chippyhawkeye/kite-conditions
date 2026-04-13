@@ -578,9 +578,7 @@ def spot_detail(spot_id):
         "error": error,
         "days": [],
         "timezone": "",
-        "webcam": spot.get("webcam", ""),
-        "webcam_source": spot.get("webcam_source", ""),
-        "webcam_label": spot.get("webcam_label", ""),
+        "webcams": spot.get("webcams", []),
     }
 
     # Current conditions placeholder

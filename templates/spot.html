@@ -195,89 +195,122 @@
       font-style: italic;
     }
 
-    /* ── Webcam ───────────────────────────── */
-    .webcam-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
+    /* ── Webcams ──────────────────────────── */
+    .webcams-section {
       margin-bottom: 1.5rem;
     }
 
-    .webcam-card .webcam-header {
-      padding: 0.8rem 1.2rem;
-      font-size: 0.85rem;
+    .webcams-header {
+      font-size: 0.9rem;
       font-weight: 700;
-      border-bottom: 1px solid var(--border);
+      margin-bottom: 0.6rem;
       display: flex;
       align-items: center;
       gap: 0.4rem;
     }
 
-    .webcam-link {
-      display: flex;
-      align-items: center;
-      gap: 1.2rem;
-      padding: 1rem 1.2rem;
+    .webcams-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 0.8rem;
+    }
+
+    .webcam-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      transition: border-color 0.15s;
+    }
+
+    .webcam-card:hover {
+      border-color: var(--accent);
+    }
+
+    .webcam-img-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      cursor: pointer;
+      display: block;
       text-decoration: none;
-      color: var(--text);
-      transition: background 0.15s;
     }
 
-    .webcam-link:hover {
-      background: rgba(255,255,255,0.04);
+    .webcam-img-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: opacity 0.3s;
     }
 
-    .webcam-play {
-      flex-shrink: 0;
-      width: 56px;
-      height: 56px;
+    .webcam-img-wrap .webcam-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.35);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .webcam-img-wrap:hover .webcam-overlay {
+      opacity: 1;
+    }
+
+    .webcam-overlay .play-icon {
+      width: 48px;
+      height: 48px;
       border-radius: 50%;
       background: var(--accent);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.4rem;
+      font-size: 1.2rem;
       color: #0f1923;
-      transition: transform 0.15s, box-shadow 0.15s;
+      margin-bottom: 0.4rem;
+      box-shadow: 0 4px 15px rgba(56, 189, 248, 0.4);
     }
 
-    .webcam-link:hover .webcam-play {
-      transform: scale(1.08);
-      box-shadow: 0 0 20px rgba(56, 189, 248, 0.35);
+    .webcam-overlay span {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #fff;
     }
 
-    .webcam-info {
-      flex: 1;
-      min-width: 0;
+    .webcam-card .webcam-footer {
+      padding: 0.5rem 0.8rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
 
-    .webcam-info .webcam-title {
-      font-size: 0.95rem;
-      font-weight: 700;
-    }
-
-    .webcam-info .webcam-subtitle {
+    .webcam-footer .webcam-label {
       font-size: 0.78rem;
-      color: var(--text-muted);
-      margin-top: 0.15rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
-    .webcam-badge {
+    .webcam-footer .live-badge {
       flex-shrink: 0;
       display: flex;
       align-items: center;
-      gap: 0.35rem;
-      font-size: 0.72rem;
-      font-weight: 600;
+      gap: 0.3rem;
+      font-size: 0.65rem;
+      font-weight: 700;
       color: var(--send-it);
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
 
-    .webcam-badge .live-dot {
-      width: 8px;
-      height: 8px;
+    .live-badge .live-dot {
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
       background: var(--send-it);
       animation: pulse-dot 1.5s ease-in-out infinite;
@@ -570,20 +603,27 @@
       {% endif %}
     </div>
 
-    {% if spot.webcam_source %}
-    <!-- ── Live Webcam ──────────────────── -->
-    <div class="webcam-card">
-      <div class="webcam-header">📹 Live Webcam</div>
-      <a href="{{ spot.webcam_source }}" target="_blank" rel="noopener" class="webcam-link">
-        <div class="webcam-play">▶</div>
-        <div class="webcam-info">
-          <div class="webcam-title">{{ spot.webcam_label or spot.name }}</div>
-          <div class="webcam-subtitle">Opens live stream in new tab</div>
+    {% if spot.webcams %}
+    <!-- ── Live Webcams ─────────────────── -->
+    <div class="webcams-section">
+      <div class="webcams-header">📹 Live Webcams</div>
+      <div class="webcams-grid">
+        {% for cam in spot.webcams %}
+        <div class="webcam-card">
+          <a href="{{ cam.stream }}" target="_blank" rel="noopener" class="webcam-img-wrap">
+            <img src="{{ cam.image }}" alt="{{ cam.label }}" class="webcam-snapshot" loading="lazy" onerror="this.style.opacity='0.3'">
+            <div class="webcam-overlay">
+              <div class="play-icon">▶</div>
+              <span>Watch Live</span>
+            </div>
+          </a>
+          <div class="webcam-footer">
+            <span class="webcam-label">{{ cam.label }}</span>
+            <span class="live-badge"><span class="live-dot"></span> LIVE</span>
+          </div>
         </div>
-        <div class="webcam-badge">
-          <span class="live-dot"></span> LIVE
-        </div>
-      </a>
+        {% endfor %}
+      </div>
     </div>
     {% endif %}
 
@@ -718,6 +758,18 @@
       } catch(e) {}
       window.location.href = '/spot/{{ spot.id }}?offset=' + offsetDays + '&days=' + numDays;
     }
+
+    // Auto-refresh webcam snapshots every 60 seconds
+    (function() {
+      var imgs = document.querySelectorAll('.webcam-snapshot');
+      if (!imgs.length) return;
+      setInterval(function() {
+        imgs.forEach(function(img) {
+          var src = img.src.split('&_t=')[0];
+          img.src = src + '&_t=' + Date.now();
+        });
+      }, 60000);
+    })();
   </script>
 
 </body>
